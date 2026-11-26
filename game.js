@@ -247,7 +247,7 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => { keys[e.code] = false; });
 // zona táctil: joystick flotante a la izquierda, botones a la derecha
 const TC = { stick: null, base: null, pos: null, btn: {} };
-const BTNS = () => ({ j: { x: W - 58, y: H - 60, r: 40, label: 'SALTAR' }, f: { x: W - 146, y: H - 46, r: 34, label: 'TIRAR' }, b: { x: W - 92, y: H - 140, r: 28, label: 'BICHI' } });
+const BTNS = () => ({ j: { x: W - 70, y: H - 72, r: 56, label: 'SALTAR' }, f: { x: W - 184, y: H - 48, r: 38, label: 'TIRAR' }, b: { x: W - 128, y: H - 166, r: 30, label: 'BICHI' } });
 const pts = new Map();
 function logical(e) { return { x: (e.clientX - OX) / S, y: (e.clientY - OY) / S }; }
 function hitBtn(p) { const b = BTNS(); for (const k in b) { const o = b[k]; if ((p.x - o.x) ** 2 + (p.y - o.y) ** 2 < (o.r + 14) ** 2) return k; } return null; }
@@ -534,7 +534,7 @@ function startLevel(lv, fromCp) {
   G.E = L.en.map(e => Object.assign({ st: 'wait' }, e));
   const st = fromCp && L.cart ? { x: L.cart.x + 40, y: L.cart.y } : L.start;
   if (fromCp && L.cart) { G.cp = { x: L.cart.x + 40, y: L.cart.y }; G.cartMet = true; G.pk = G.pk.filter(p => p.type === 'fig' || p.x > L.cart.x); G.E = G.E.filter(e => e.x > L.cart.x + 120); }
-  P = { x: st.x, y: st.y - 2, vx: 0, vy: 0, on: false, face: 1, hp: SV.maxhp, inv: 1, anim: 0, crouch: false, climb: null, shootT: 0, fireCd: 0, energy: 100, ammo: Math.max(SV.ammo, L.weapon === 'gom' ? 12 : 0), hurtT: 0, landT: 0, coyote: 0, ground: null, dead: 0, safe: { x: st.x, y: st.y }, slipV: 0, win: 0 };
+  P = { x: st.x, y: st.y - 2, vx: 0, vy: 0, on: false, face: 1, hp: SV.maxhp, bar: 100, inv: 1, anim: 0, crouch: false, climb: null, shootT: 0, fireCd: 0, energy: 100, ammo: Math.max(SV.ammo, L.weapon === 'gom' ? 12 : 0), hurtT: 0, landT: 0, coyote: 0, ground: null, dead: 0, safe: { x: st.x, y: st.y }, slipV: 0, win: 0 };
   BI = { x: st.x - 40, y: st.y, vy: 0, on: true, face: 1, trail: [], cd: 0, throwT: 0, scare: 0, giftT: 6, anim: 0 };
   G.cx = clamp(P.x - W * 0.4, 0, Math.max(0, L.w - W)); G.cy = L.vertical ? clamp(P.y - H * 0.65, 0, L.h - H) : 0;
   SV.resume = { lv, cp: !!fromCp }; save();
@@ -557,9 +557,12 @@ function introLines(lv, cp) {
 
 /* ---------- Jugadora ---------- */
 function onLadderNear() { if (!G || !P) return false; return G.L.lad.some(l => Math.abs(P.x - l.x) < 18 && P.y > l.top - 4 && P.y - 20 < l.bot); }
-function hurt(src) {
+// cada corazón tiene una barra: cuando se vacía, se pierde el corazón y la barra se llena de nuevo
+function hurt(src, dmg = 25) {
   if (P.inv > 0 || P.win || G.clear) return;
-  P.hp--; P.inv = 1.6; P.hurtT = 0.45; P.climb = null; P.vy = -360; P.vx = (src != null ? Math.sign(P.x - src) || -P.face : -P.face) * 210; P.on = false; P.ground = null;
+  P.bar -= dmg; P.barFlash = 0.5;
+  if (P.bar <= 0) { P.hp--; P.bar = P.hp > 0 ? 100 : 0; word(P.x, P.y - 80, '−1 ❤', '#ff6b8a'); }
+  P.inv = 1.2; P.hurtT = 0.45; P.climb = null; P.vy = -360; P.vx = (src != null ? Math.sign(P.x - src) || -P.face : -P.face) * 210; P.on = false; P.ground = null;
   SFX.hurt(); G.shake = 0.25; BI.scare = 0.6; vibe(60);
   if (P.hp <= 0) { P.dead = 1.2; P.inv = 9; stopMusic(); }
   else if (Math.random() < 0.5) say('bichi', pick(['¡Ay! ¡Cuidado, Chispa!', '¡Esos bichos pican!', '¡Arriba, Chispa!']), 1.8);
@@ -567,7 +570,7 @@ function hurt(src) {
 function fall(type) {
   if (P.dead || G.clear) return;
   if (type === 'agua' || type === 'pileta') { SFX.splash(); puff(P.x, P.y, 14, type === 'agua' ? '#6fd3ff' : '#ffffff', 160, 0.8, 5); }
-  P.inv = 0; hurt(); if (P.hp <= 0) return;
+  P.inv = 0; hurt(null, 50); if (P.hp <= 0) return;
   P.x = P.safe.x; P.y = P.safe.y - 2; P.vx = 0; P.vy = 0; P.inv = 1.8; P.on = false;
   BI.x = P.x - 30; BI.y = P.y - 10;
   say('bichi', type === 'agua' ? '¡Te mojaste toda! Saltá con más carrera.' : type === 'pileta' ? '¡Quema! Mejor por arriba.' : '¡Uy! Volvemos acá.', 2);
@@ -614,8 +617,8 @@ function updatePlayer(dt) {
   const hh = P.crouch ? HC : HH;
   // horizontal (en hielo o piedra mojada resbala)
   const ice = P.ground && (P.ground.slip || (G.L.ice && P.ground.ground) || P.ground.key === 'ice' || P.ground.key === 'wet');
-  const target = mv * (P.crouch ? SPD * 0.4 : SPD);
-  const acc = P.hurtT > 0 ? 2 : P.on ? (ice ? 2.2 : 14) : 7;
+  const target = P.crouch ? 0 : mv * SPD;
+  const acc = P.hurtT > 0 ? 2 : P.crouch ? 30 : P.on ? (ice ? 2.2 : 14) : 7;
   P.vx += (target - P.vx) * Math.min(1, dt * acc);
   if (mv && P.hurtT <= 0) P.face = mv;
   // salto
@@ -647,7 +650,7 @@ function updatePlayer(dt) {
   if (P.y > (L.fallY || L.h + 40)) fall('pozo');
   for (const h of L.haz) {
     if (P.x > h.x && P.x < h.x + h.w && P.y > h.y && P.y - hh < h.y + h.h) {
-      if (h.type === 'cristal') { hurt(h.x + h.w / 2); P.vy = -420; } else if (P.y > h.y + 8) fall(h.type);
+      if (h.type === 'cristal') { hurt(h.x + h.w / 2, 25); P.vy = -420; } else if (P.y > h.y + 8) fall(h.type);
     }
   }
   if (IN.f) shoot();
@@ -678,7 +681,7 @@ function updateTunnels(dt) {
     if (c != null) {
       G.tunnelIn = Math.min(1, G.tunnelIn + dt * 5);
       const head = P.y - (P.crouch && IN.d ? HC : HH);
-      if (head < c) { if (!t.hit || P.y - HC < c) { t.hit = 1; hurt(P.x + 30); } }
+      if (head < c) { if (!t.hit || P.y - HC < c) { t.hit = 1; hurt(P.x + 30, 34); } }
     }
   }
 }
@@ -855,7 +858,7 @@ function updateBoss(dt) {
       break;
     }
   }
-  if (b.st !== 'intro' && P.inv <= 0) { const bb = bossBox(b); if (Math.abs(P.x - bb.x) < bb.w / 2 + HW - 6 && P.y > bb.y - bb.h / 2 + 4 && P.y - (P.crouch ? HC : HH) < bb.y + bb.h / 2) hurt(b.x); }
+  if (b.st !== 'intro' && P.inv <= 0) { const bb = bossBox(b); if (Math.abs(P.x - bb.x) < bb.w / 2 + HW - 6 && P.y > bb.y - bb.h / 2 + 4 && P.y - (P.crouch ? HC : HH) < bb.y + bb.h / 2) hurt(b.x, 34); }
   if (b.st === 'intro' && b.mt <= 0) { b.st = { langosta: 'idle', polilla: 'fly', libelula: 'hover', avispon: 'hover', escarabajo: 'walk', princesa: 'hover' }[b.type]; b.mt = 1; }
 }
 function damageBoss(dmg) {
@@ -890,7 +893,7 @@ function updateShots(dt) {
     s.vy += s.g * dt; s.x += s.vx * dt; s.y += s.vy * dt;
     if (s.g && surfaceAt(s.x, s.y - 4, s.y + 8)) { s.life = 0; puff(s.x, s.y, 6, s.kind === 'drop' ? '#7fdcff' : s.kind === 'lava' ? '#ff8a1f' : '#555', 80, 0.4, 3); }
     if (s.y > G.cy + H + 60) s.life = 0;
-    if (s.life > 0 && P.inv <= 0 && Math.abs(s.x - P.x) < s.r + HW && s.y > P.y - (P.crouch ? HC : HH) - s.r && s.y < P.y + s.r) { s.life = 0; hurt(s.x); }
+    if (s.life > 0 && P.inv <= 0 && Math.abs(s.x - P.x) < s.r + HW && s.y > P.y - (P.crouch ? HC : HH) - s.r && s.y < P.y + s.r) { s.life = 0; hurt(s.x, 20); }
   }
   G.ES = G.ES.filter(s => s.life > 0);
 }
@@ -907,7 +910,7 @@ function updatePickups(dt) {
       if (p.type === 'coin') { G.coins++; SV.coins++; SFX.coin(); }
       else if (p.type === 'pit') { P.ammo = Math.min(40, P.ammo + 4); SFX.pick(); word(p.x, p.y - 16, '+4 CAROZOS'); }
       else if (p.type === 'bat') { P.energy = 100; P.ammo = Math.min(40, P.ammo + 2); SFX.pick(); word(p.x, p.y - 16, G.L.weapon === 'des' ? '¡ENERGÍA!' : '+2 CAROZOS'); }
-      else if (p.type === 'heart') { P.hp = Math.min(SV.maxhp, P.hp + 1); SFX.pick(); word(p.x, p.y - 16, '+1 ❤'); }
+      else if (p.type === 'heart') { if (P.bar < 100) { P.bar = 100; word(p.x, p.y - 16, '¡VIDA LLENA!'); } else { P.hp = Math.min(SV.maxhp, P.hp + 1); word(p.x, p.y - 16, '+1 ❤'); } SFX.pick(); }
       else if (p.type === 'fig') { SV.fig[G.lv] |= 1 << p.i; G.figs++; save(); SFX.fig(); word(p.x, p.y - 20, '¡FIGURITA!', '#ff8ad8'); puff(p.x, p.y, 16, '#ffd21f', 140, 0.7, 4); say('bichi', pick(['¡Una figurita para el álbum!', '¡Esa no la tenía!', '¡Pegala en el álbum!']), 2); }
     }
   }
@@ -1163,8 +1166,9 @@ function drawDark() {
 function heart(x, y, on, s = 1) { ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = on ? '#e2357a' : 'rgba(255,255,255,.25)'; ctx.strokeStyle = '#120a1f'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(10, 18); ctx.bezierCurveTo(-6, 6, 2, -4, 10, 4); ctx.bezierCurveTo(18, -4, 26, 6, 10, 18); ctx.fill(); ctx.stroke(); ctx.restore(); }
 function drawHUD() {
   ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  for (let i = 0; i < SV.maxhp; i++) heart(12 + i * 25, 12, i < P.hp);
-  const cx0 = 18 + SV.maxhp * 25; drawCoin(cx0 + 4, 22, 0); outlined(String(SV.coins), cx0 + 16, 24, 17, '#fff');
+  for (let i = 0; i < SV.maxhp; i++) heart(12 + i * 25, 6, i < P.hp);
+  { const bw = SV.maxhp * 25 - 4, bx = 13, by = 28; P.barFlash = Math.max(0, (P.barFlash || 0) - 1 / 60); ctx.fillStyle = '#120a1f'; ctx.fillRect(bx - 2, by - 2, bw + 4, 10); ctx.fillStyle = '#3a1d33'; ctx.fillRect(bx, by, bw, 6); const k = clamp(P.bar / 100, 0, 1); ctx.fillStyle = P.barFlash > 0 && Math.floor(P.barFlash * 16) % 2 ? '#fff' : k > 0.5 ? '#5fe06a' : k > 0.25 ? '#ffd21f' : '#ff5a5a'; ctx.fillRect(bx, by, bw * k, 6); }
+  const cx0 = 18 + SV.maxhp * 25; drawCoin(cx0 + 4, 20, 0); outlined(String(SV.coins), cx0 + 16, 22, 17, '#fff');
   // arma
   const gom = G.L.weapon === 'gom', wim = IMG[gom ? 'gomera' : 'desmutador'], wx = 12, wy = 40;
   ctx.fillStyle = 'rgba(18,10,31,.55)'; ctx.fillRect(wx, wy, 104, 30); ctx.strokeStyle = '#120a1f'; ctx.lineWidth = 2; ctx.strokeRect(wx, wy, 104, 30);
@@ -1192,7 +1196,7 @@ function drawHUD() {
 function wrap(t, x, y, mw, lh) { const ws = t.split(' '); let line = '', yy = y; for (const w of ws) { const tt = line ? line + ' ' + w : w; if (ctx.measureText(tt).width > mw && line) { ctx.fillText(line, x, yy); line = w; yy += lh; } else line = tt; } ctx.fillText(line, x, yy); }
 function drawTouch() {
   const b = BTNS();
-  const btn = (o, on, extra) => { ctx.globalAlpha = on ? 0.95 : 0.55; ctx.fillStyle = '#120a1f'; ctx.beginPath(); ctx.arc(o.x + 3, o.y + 3, o.r, 0, TAU); ctx.fill(); ctx.fillStyle = on ? '#ffd21f' : '#fff'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#120a1f'; ctx.lineWidth = 3; ctx.stroke(); if (extra) extra(o); ctx.textAlign = 'center'; ctx.font = (o.r > 30 ? 14 : 11) + 'px "Luckiest Guy", Impact'; ctx.fillStyle = '#120a1f'; ctx.fillText(o.label, o.x, o.y + 1); ctx.globalAlpha = 1; };
+  const btn = (o, on, extra) => { ctx.globalAlpha = on ? 0.95 : 0.55; ctx.fillStyle = '#120a1f'; ctx.beginPath(); ctx.arc(o.x + 3, o.y + 3, o.r, 0, TAU); ctx.fill(); ctx.fillStyle = on ? '#ffd21f' : '#fff'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, TAU); ctx.fill(); ctx.strokeStyle = '#120a1f'; ctx.lineWidth = 3; ctx.stroke(); if (extra) extra(o); ctx.textAlign = 'center'; ctx.font = (o.r > 50 ? 18 : o.r > 30 ? 14 : 11) + 'px "Luckiest Guy", Impact'; ctx.fillStyle = '#120a1f'; ctx.fillText(o.label, o.x, o.y + 1); ctx.globalAlpha = 1; };
   btn(b.j, TC.btn.j); btn(b.f, TC.btn.f);
   btn(b.b, TC.btn.b, o => { if (BI.cd > 0) { ctx.fillStyle = 'rgba(18,10,31,.45)'; ctx.beginPath(); ctx.moveTo(o.x, o.y); ctx.arc(o.x, o.y, o.r, -Math.PI / 2, -Math.PI / 2 + TAU * (BI.cd / 6)); ctx.fill(); } });
   const p = TC.pos;
@@ -1334,10 +1338,10 @@ $('fMenu').onclick = toMenu;
 
 /* ---------- El puesto de Don Tito ---------- */
 const SHOP = [
-  { id: 'heart', name: 'Corazón', desc: 'Recuperás un corazón.', cost: 25, img: 'objetos-juntar-2', ok: () => P.hp < SV.maxhp, buy: () => { P.hp++; } },
+  { id: 'heart', name: 'Corazón', desc: 'Llena la barra de vida o te da un corazón.', cost: 25, img: 'objetos-juntar-2', ok: () => P.hp < SV.maxhp || P.bar < 100, buy: () => { if (P.bar < 100) P.bar = 100; else P.hp++; } },
   { id: 'pits', name: 'Bolsa de carozos', desc: '10 carozos para la gomera.', cost: 15, img: 'objetos-juntar-0', ok: () => P.ammo < 40, buy: () => { P.ammo = Math.min(40, P.ammo + 10); } },
   { id: 'bat', name: 'Batería violeta', desc: 'Desmutador cargado al máximo.', cost: 10, img: 'objetos-juntar-1', ok: () => G.L.weapon === 'des' && P.energy < 100, buy: () => { P.energy = 100; } },
-  { id: 'maxhp', name: 'Corazón extra', desc: 'Un corazón más para siempre (hasta 5).', cost: 120, img: 'objetos-juntar-2', ok: () => SV.maxhp < 5, buy: () => { SV.maxhp++; P.hp++; } },
+  { id: 'maxhp', name: 'Corazón extra', desc: 'Un corazón más para siempre (hasta 5).', cost: 120, img: 'objetos-juntar-2', ok: () => SV.maxhp < 5, buy: () => { SV.maxhp++; P.hp++; P.bar = 100; } },
   { id: 'bichi', name: 'Yerba para Bichi', desc: 'Bichi tira el doble de rápido en este nivel.', cost: 30, img: 'cara-bichi', ok: () => !G.bichiFast, buy: () => { G.bichiFast = true; } },
 ];
 function openShop() {
