@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>El Huevo Violeta</title>
+<meta name="theme-color" content="#1a0d2e">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+@font-face{font-family:'Luckiest Guy';src:url(a/luckiest-guy.woff2) format('woff2');font-display:swap}
+@font-face{font-family:Archivo;src:url(a/archivo-700.woff2) format('woff2');font-weight:600 700;font-display:swap}
+@font-face{font-family:Archivo;src:url(a/archivo-800.woff2) format('woff2');font-weight:800;font-display:swap}
+/* VOICE: aventura de plataformas con el estilo del álbum de figuritas de los 90
+   IDEA: cada pantalla es una página del álbum; el juego es la viñeta que se mueve
+   PICTURE: las ilustraciones de Gemini; el menú sobre la portada
+   COLOUR and TYPE: violeta noche, amarillo onomatopeya, magenta; Luckiest Guy para títulos, Archivo para texto
+   LAYOUT: juego a pantalla completa apaisado, pantallas como tarjetas con borde negro grueso y sombra corrida */
+:root{color-scheme:dark;--ink:#120a1f;--yel:#ffd21f;--mag:#e2357a;--vio:#5b2a86;--paper:#fff7e6;--cy:#18a9df}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:#0d0618;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font:16px Archivo,system-ui,sans-serif;color:#fff}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+.scr{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:12px;text-align:center;padding:max(14px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));z-index:5;overflow:auto}
+.dim{background:rgba(18,10,31,.82)}
+.hidden{display:none!important}
+h1,h2{margin:0;font-weight:400;font-family:'Luckiest Guy',Impact,sans-serif;color:var(--yel);-webkit-text-stroke:2px var(--ink);text-shadow:4px 4px 0 var(--ink),7px 7px 0 var(--mag);letter-spacing:1px}
+h1{font-size:clamp(34px,7.5vw,64px);line-height:.95;transform:rotate(-3deg)}
+h2{font-size:clamp(26px,5vw,40px);line-height:1;transform:rotate(-2deg)}
+p{margin:0;max-width:520px;font-weight:600;line-height:1.4}
+.btn{font:400 22px/1 'Luckiest Guy',Impact,sans-serif;letter-spacing:1px;color:var(--ink);background:var(--yel);border:3px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink);min-height:50px;padding:12px 24px;cursor:pointer}
+.btn.alt{background:#fff}
+.btn.mag{background:var(--mag);color:#fff}
+.btn.sm{font-size:17px;min-height:44px;padding:9px 16px}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+.btn:disabled{opacity:.45}
+.btn:focus-visible,.card:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.col{display:flex;flex-direction:column;gap:10px;align-items:stretch;min-width:230px}
+/* menú */
+#menu{background:#0d0618 url(a/portada-huevo.webp) center/cover no-repeat;justify-content:flex-end;padding-bottom:max(18px,env(safe-area-inset-bottom))}
+#menu::before{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(13,6,24,0) 30%,rgba(13,6,24,.85) 88%);pointer-events:none}
+#menu>*{position:relative}
+#menu h1{position:absolute;top:max(14px,env(safe-area-inset-top));left:0;right:0}
+#menu .sub{font:400 15px 'Luckiest Guy',Impact;color:#fff;-webkit-text-stroke:1px var(--ink);letter-spacing:2px;position:absolute;top:calc(max(14px,env(safe-area-inset-top)) + clamp(40px,8vw,70px));left:0;right:0;text-shadow:2px 2px 0 var(--ink)}
+.corner{position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:6;width:46px;height:46px;border-radius:50%;border:3px solid var(--ink);background:#fff;color:var(--ink);font:400 20px 'Luckiest Guy',Impact;box-shadow:3px 3px 0 var(--ink);cursor:pointer}
+/* tarjetas */
+.panel{background:var(--paper);color:var(--ink);border:4px solid var(--ink);border-radius:14px;box-shadow:7px 7px 0 var(--ink);padding:18px 20px;max-width:620px;width:100%}
+.panel p{color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;width:100%;max-width:900px}
+.card{position:relative;background:var(--paper);color:var(--ink);border:3px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink);padding:8px;cursor:pointer;text-align:left;font:inherit}
+.card img{width:100%;aspect-ratio:16/9;object-fit:cover;border:2px solid var(--ink);border-radius:6px;display:block;background:var(--vio)}
+.card b{display:block;font:400 17px 'Luckiest Guy',Impact;margin-top:6px;letter-spacing:.5px}
+.card small{display:block;font-weight:700;font-size:12px;opacity:.8}
+.card.lock{filter:grayscale(1);opacity:.55;cursor:default}
+.card .num{position:absolute;top:2px;left:2px;background:var(--yel);border:2px solid var(--ink);border-radius:8px;font:400 15px 'Luckiest Guy';padding:2px 7px}
+/* álbum */
+.album{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;width:100%;max-width:900px}
+.fig{background:#fff;border:3px solid var(--ink);border-radius:8px;padding:5px;color:var(--ink);box-shadow:3px 3px 0 var(--ink);transform:rotate(var(--r,0deg))}
+.fig img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;border-radius:3px}
+.fig .hole{width:100%;aspect-ratio:16/9;display:grid;place-items:center;background:repeating-linear-gradient(45deg,#e9dcc4 0 8px,#f3e8d3 8px 16px);border-radius:3px;font:400 28px 'Luckiest Guy';color:#b8a27c}
+.fig small{display:block;font-weight:800;font-size:11px;margin-top:4px}
+/* historieta */
+#comic{background:#0d0618;padding:0;gap:0}
+#comic .pg{position:relative;width:min(100vw,calc((100vh - 8px) * 16/9));max-height:100vh;aspect-ratio:16/9}
+#comic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}
+#comic img.on{opacity:1}
+#cap{position:absolute;left:3%;bottom:4%;max-width:70%;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:10px 14px;font-weight:800;font-size:clamp(13px,2.1vw,19px);line-height:1.3;text-align:left;transform:rotate(-.6deg)}
+#cskip{position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:7}
+#cnext{position:fixed;bottom:max(12px,env(safe-area-inset-bottom));right:max(12px,env(safe-area-inset-right));z-index:7}
+/* tienda */
+.shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin:8px 0}
+.item{background:#fff;border:3px solid var(--ink);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:4px;align-items:center;box-shadow:3px 3px 0 var(--ink)}
+.item img{height:32px}
+.item b{font:400 17px 'Luckiest Guy'}
+.item small{font-weight:700;font-size:11px;text-align:center;line-height:1.25}
+#shop .panel{padding:12px 14px;max-width:800px}
+.scr{touch-action:pan-y}
+.coins{font:400 20px 'Luckiest Guy';color:var(--ink)}
+.coins::before{content:"";display:inline-block;width:16px;height:16px;border-radius:50%;background:var(--yel);border:2px solid var(--ink);margin-right:6px;vertical-align:-2px}
+#toast{position:fixed;left:50%;top:max(14px,env(safe-area-inset-top));transform:translateX(-50%);background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:8px 14px;font-weight:800;z-index:20;border-radius:10px;transition:opacity .3s;opacity:0;pointer-events:none}
+#toast.on{opacity:1}
+#rotate{z-index:30;background:#1a0d2e}
+#rotate .ph{width:60px;height:100px;border:5px solid #fff;border-radius:12px;animation:rot 1.8s ease-in-out infinite}
+@keyframes rot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
+#shopBtn{position:fixed;z-index:4;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom))}
+.face{width:110px;height:110px;border:4px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink);background:var(--cy);object-fit:cover}
+#loading .bar{width:220px;height:16px;border:3px solid var(--ink);background:#fff;border-radius:8px;overflow:hidden}
+#loading .bar i{display:block;height:100%;width:0;background:var(--mag)}
+@media (prefers-reduced-motion:reduce){#rotate .ph{animation:none}#comic img{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div class="scr dim" id="loading"><h1>EL HUEVO VIOLETA</h1><div class="bar"><i id="lbar"></i></div><p>Pegando figuritas…</p></div>
+
+<div class="scr hidden" id="menu">
+  <h1>EL HUEVO VIOLETA</h1>
+  <div class="sub">UNA AVENTURA DE CHISPA Y BICHI</div>
+  <div class="col">
+    <button class="btn hidden" id="bResume">CONTINUAR</button>
+    <button class="btn" id="bPlay">JUGAR</button>
+    <div class="row"><button class="btn alt sm" id="bLevels">NIVELES</button><button class="btn alt sm" id="bAlbum">ÁLBUM</button></div>
+    <button class="btn mag sm hidden" id="bInstall">📲 INSTALAR EN EL CEL</button>
+  </div>
+</div>
+<button class="corner hidden" id="mute" aria-label="Sonido">♪</button>
+
+<div class="scr dim hidden" id="levels">
+  <h2>NIVELES</h2>
+  <div class="grid" id="lvGrid"></div>
+  <button class="btn alt sm" id="lvBack">VOLVER</button>
+</div>
+
+<div class="scr dim hidden" id="albumS">
+  <h2>EL ÁLBUM</h2>
+  <p id="albumTxt"></p>
+  <div class="album" id="albumGrid"></div>
+  <button class="btn alt sm" id="alBack">VOLVER</button>
+</div>
+
+<div class="scr hidden" id="comic">
+  <div class="pg"><img id="cimgA" alt=""><img id="cimgB" alt=""><div id="cap"></div></div>
+  <button class="btn alt sm" id="cskip">OMITIR</button>
+  <button class="btn sm" id="cnext">SEGUIR ▶</button>
+</div>
+
+<div class="scr dim hidden" id="pause">
+  <h2>PAUSA</h2>
+  <div class="col">
+    <button class="btn" id="pResume">SEGUIR</button>
+    <button class="btn alt sm" id="pRestart">REINICIAR NIVEL</button>
+    <button class="btn alt sm" id="pMute">SONIDO: SÍ</button>
+    <button class="btn alt sm" id="pMenu">MENÚ</button>
+  </div>
+</div>
+
+<div class="scr dim hidden" id="over">
+  <img class="face" src="a/cara-chispa-derrota.webp" alt="">
+  <h2>¡CHISPA NECESITA UN RESPIRO!</h2>
+  <p id="overTxt">Bichi te espera en el puesto de Don Tito.</p>
+  <div class="row"><button class="btn" id="oRetry">VOLVER AL PUESTO</button><button class="btn alt sm" id="oMenu">MENÚ</button></div>
+</div>
+
+<div class="scr dim hidden" id="win">
+  <h2 id="winT">¡NIVEL SUPERADO!</h2>
+  <div class="panel"><p id="winS"></p></div>
+  <button class="btn" id="wNext">SEGUIR</button>
+</div>
+
+<div class="scr dim hidden" id="shop">
+  <div class="panel">
+    <div class="row" style="align-items:center;justify-content:space-between"><h2 style="font-size:28px">EL PUESTO DE DON TITO</h2><span class="coins" id="shCoins"></span></div>
+    <p id="shSay"></p>
+    <div class="shop" id="shItems"></div>
+    <button class="btn" id="shBack">SEGUIR JUGANDO</button>
+  </div>
+</div>
+
+<div class="scr dim hidden" id="fin">
+  <h1>FIN</h1>
+  <div class="panel"><p>Mendoza está a salvo. La Princesa quedó chiquita y ahora es amiga de Bichi.</p><p id="finS" style="margin-top:8px"></p></div>
+  <button class="btn" id="fMenu">MENÚ</button>
+</div>
+
+<div class="scr dim hidden" id="ios">
+  <div class="panel"><h2 style="font-size:28px">INSTALAR EN EL CEL</h2><p style="margin-top:10px" id="instTxt"></p></div>
+  <button class="btn" id="iosOk">LISTO</button>
+</div>
+
+<div class="scr hidden" id="rotate"><div class="ph"></div><h2>GIRÁ EL CEL</h2><p>El Huevo Violeta se juega con el cel acostado.</p></div>
+<button class="btn sm hidden" id="shopBtn">🛒 COMPRAR</button>
+<div id="toast"></div>
+<script src="meta.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
