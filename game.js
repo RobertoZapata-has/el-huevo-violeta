@@ -532,17 +532,25 @@ function startLevel(lv, fromCp) {
   // figuritas ya pegadas en una partida anterior no vuelven a aparecer
   G.pk = G.pk.filter(p => !(p.type === 'fig' && (SV.fig[lv] >> p.i) & 1));
   G.E = L.en.map(e => Object.assign({ st: 'wait' }, e));
-  const st = fromCp && L.cart ? { x: L.cart.x + 40, y: L.cart.y } : L.start;
-  if (fromCp && L.cart) { G.cp = { x: L.cart.x + 40, y: L.cart.y }; G.cartMet = true; G.pk = G.pk.filter(p => p.type === 'fig' || p.x > L.cart.x); G.E = G.E.filter(e => e.x > L.cart.x + 120); }
+  let st = fromCp && L.cart ? { x: L.cart.x + 40, y: L.cart.y } : L.start;
+  if (fromCp === 'boss' && L.arena) {
+    const a = L.arena;
+    if (a.trigY != null) st = { x: 300, y: a.trigY };
+    else { const x = Math.max(a.x0 + 50, a.trig + 12), q = (() => { G.T = L.T; return surfaceAt(x, 0, 2000); })(); st = { x, y: q ? q.s : L.gy }; }
+    G.cp = st; G.bossCp = true; G.cartMet = true;
+    G.pk = G.pk.filter(p => p.type !== 'fig' && (a.trigY != null ? p.y < 400 : p.x > a.x0));
+    G.E = G.E.filter(e => a.trigY != null ? e.y < 300 : e.x > a.x1);
+  } else if (fromCp && L.cart) { G.cp = { x: L.cart.x + 40, y: L.cart.y }; G.cartMet = true; G.pk = G.pk.filter(p => p.type === 'fig' || p.x > L.cart.x); G.E = G.E.filter(e => e.x > L.cart.x + 120); }
   P = { x: st.x, y: st.y - 2, vx: 0, vy: 0, on: false, face: 1, hp: SV.maxhp, bar: 100, inv: 1, anim: 0, crouch: false, climb: null, shootT: 0, fireCd: 0, energy: 100, ammo: Math.max(SV.ammo, L.weapon === 'gom' ? 12 : 0), hurtT: 0, landT: 0, coyote: 0, ground: null, dead: 0, safe: { x: st.x, y: st.y }, slipV: 0, win: 0 };
   BI = { x: st.x - 40, y: st.y, vy: 0, on: true, face: 1, trail: [], cd: 0, throwT: 0, scare: 0, giftT: 6, anim: 0 };
   G.cx = clamp(P.x - W * 0.4, 0, Math.max(0, L.w - W)); G.cy = L.vertical ? clamp(P.y - H * 0.65, 0, L.h - H) : 0;
-  SV.resume = { lv, cp: !!fromCp }; save();
+  SV.resume = { lv, cp: fromCp === 'boss' ? 'boss' : !!fromCp }; save();
   hideAll(); $('mute').classList.add('hidden');
   playMusic(L.music);
   introLines(lv, fromCp); checkRotate();
 }
 function introLines(lv, cp) {
+  if (cp === 'boss') { say('bichi', pick(['¡Revancha! Esta vez le ganamos.', '¡Otra vez! Tiralé a las patas también.', 'Si saltás, lo esquivás por arriba.']), 2.4); return; }
   if (cp) { say('tito', '¡Acá estoy, nena! Seguí que vas bien.'); return; }
   const L = [
     [['bichi', '¡Saltá entre los vagones! Si caés a las vías, perdés un corazón.'], ['chispa', 'Y con el desmutador los bichos vuelven a su tamaño. Nadie sale lastimado.']],
@@ -771,7 +779,7 @@ function damageEnemy(e, dmg, stun) {
 /* ---------- Jefes ---------- */
 function startBoss() {
   const L = G.L, a = L.arena, d = BOSS[a.boss];
-  G.lock = true;
+  G.lock = true; G.bossCp = true; SV.resume = { lv: G.lv, cp: 'boss' }; save();
   const b = { type: a.boss, x: a.bx, y: a.by, hp: d.hp, max: d.hp, t: 0, st: 'intro', f: 0, face: -1, vx: 0, vy: 0, flash: 0, k: 1, mt: 1.6, n: 0, d };
   if (!d.fly) { const q = surfaceAt(b.x, 0, 1000); b.y = q ? q.s : L.gy; }
   b.hx = b.x; b.hy = b.y;
@@ -787,6 +795,7 @@ function startBoss() {
   lines.forEach(([w, t]) => say(w, t, 2.6));
 }
 function bossBox(b) { const d = b.d, m = STRIPS[d.strip], w = m.fw * d.s * 0.55 * b.k; if (b.type === 'escarabajo') { const h = m.fh * d.s * 0.45 * b.k; return { x: b.x, y: b.y - h / 2, w, h }; } const h = m.fh * d.s * 0.62 * b.k; return { x: b.x, y: d.fly ? b.y : b.y - m.fh * d.s * 0.5 * b.k, w, h }; }
+function bossHitBox(b) { const d = b.d, m = STRIPS[d.strip], w = m.fw * d.s * 0.7 * b.k, h = m.fh * d.s * 0.92 * b.k; return { x: b.x, y: d.fly ? b.y : b.y - h / 2, w, h }; }
 function eshot(x, y, vx, vy, kind, o = {}) { G.ES.push(Object.assign({ x, y, vx, vy, g: 0, r: 8, kind, life: 4 }, o)); }
 function arenaFloorAt(x) { const q = surfaceAt(x, 0, 1200); return q ? q.s : G.L.gy; }
 function updateBoss(dt) {
@@ -858,7 +867,7 @@ function updateBoss(dt) {
       break;
     }
   }
-  if (b.st !== 'intro' && P.inv <= 0) { const bb = bossBox(b); if (Math.abs(P.x - bb.x) < bb.w / 2 + HW - 6 && P.y > bb.y - bb.h / 2 + 4 && P.y - (P.crouch ? HC : HH) < bb.y + bb.h / 2) hurt(b.x, 34); }
+  if (b.st !== 'intro' && P.inv <= 0 && P.on) { const bb = bossBox(b); if (Math.abs(P.x - bb.x) < bb.w / 2 + HW - 6 && P.y > bb.y - bb.h / 2 + 4 && P.y - (P.crouch ? HC : HH) < bb.y + bb.h / 2) hurt(b.x, 34); }
   if (b.st === 'intro' && b.mt <= 0) { b.st = { langosta: 'idle', polilla: 'fly', libelula: 'hover', avispon: 'hover', escarabajo: 'walk', princesa: 'hover' }[b.type]; b.mt = 1; }
 }
 function damageBoss(dmg) {
@@ -884,7 +893,7 @@ function updateShots(dt) {
       if (Math.abs(s.x - b.x) < b.w / 2 + 6 && Math.abs(s.y - b.y) < b.h / 2 + 11) { damageEnemy(e, s.dmg, s.stun); s.life = 0; puff(s.x, s.y, 5, s.kind === 'beam' ? '#d78bff' : '#a8693a', 80, 0.3, 3); break; }
     }
     const B = G.boss;
-    if (s.life > 0 && B && B.st !== 'shrink' && B.st !== 'gone') { const bb = bossBox(B); if (Math.abs(s.x - bb.x) < bb.w / 2 && Math.abs(s.y - bb.y) < bb.h / 2) { damageBoss(s.boss || s.dmg); s.life = 0; puff(s.x, s.y, 6, s.kind === 'beam' ? '#d78bff' : '#a8693a', 90, 0.35, 3); } }
+    if (s.life > 0 && B && B.st !== 'shrink' && B.st !== 'gone') { const bb = bossHitBox(B); if (Math.abs(s.x - bb.x) < bb.w / 2 && Math.abs(s.y - bb.y) < bb.h / 2) { damageBoss(s.boss || s.dmg); s.life = 0; puff(s.x, s.y, 6, s.kind === 'beam' ? '#d78bff' : '#a8693a', 90, 0.35, 3); } }
   }
   G.PS = G.PS.filter(s => s.life > 0);
   for (const s of G.ES) {
@@ -1304,7 +1313,7 @@ function togglePause() {
   G.paused = !G.paused;
   if (G.paused) { show('pause'); $('pMute').textContent = 'SONIDO: ' + (SV.mute ? 'NO' : 'SÍ'); saveResume(); } else hideAll();
 }
-function saveResume() { if (!G) return; SV.ammo = P.ammo; SV.resume = { lv: G.lv, cp: !!G.cp }; save(); }
+function saveResume() { if (!G) return; SV.ammo = P.ammo; SV.resume = { lv: G.lv, cp: G.bossCp ? 'boss' : !!G.cp }; save(); }
 $('pResume').onclick = togglePause;
 $('pRestart').onclick = () => startLevel(G.lv, false);
 $('pMute').onclick = () => { SV.mute = !SV.mute; save(); $('pMute').textContent = 'SONIDO: ' + (SV.mute ? 'NO' : 'SÍ'); };
@@ -1312,11 +1321,11 @@ $('pMenu').onclick = () => { saveResume(); toMenu(); };
 $('mute').onclick = () => { SV.mute = !SV.mute; save(); $('mute').textContent = SV.mute ? '✕' : '♪'; audioOn(); };
 function gameOver() {
   G.run = false; SV.ammo = Math.max(P.ammo, 8); save(); hideAll(); show('over'); $('shopBtn').classList.add('hidden');
-  $('overTxt').textContent = G.cp ? 'Bichi te espera en el puesto de Don Tito.' : 'Bichi te espera al principio del nivel.';
-  $('oRetry').textContent = G.cp ? 'VOLVER AL PUESTO' : 'OTRA VEZ';
+  $('overTxt').textContent = G.bossCp ? 'Volvés directo a la pelea con el jefe.' : G.cp ? 'Bichi te espera en el puesto de Don Tito.' : 'Bichi te espera al principio del nivel.';
+  $('oRetry').textContent = G.bossCp ? 'REVANCHA' : G.cp ? 'VOLVER AL PUESTO' : 'OTRA VEZ';
   playMusic('oscuro');
 }
-$('oRetry').onclick = () => startLevel(G.lv, !!G.cp);
+$('oRetry').onclick = () => startLevel(G.lv, G.bossCp ? 'boss' : !!G.cp);
 $('oMenu').onclick = toMenu;
 function levelClear() {
   G.clear = 0.001; P.win = 1; P.vx = 0; SFX.win();
