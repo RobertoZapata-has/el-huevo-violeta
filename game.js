@@ -78,26 +78,53 @@ const SFX = {
 /* ---------- Música (sintetizada, misma familia que Puelche) ---------- */
 function seeded(s) { return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 const PENTA = { min: [0, 3, 5, 7, 10, 12, 15, 17], maj: [0, 2, 4, 7, 9, 12, 14, 16] };
-function theme(o) {
-  const r = seeded(o.seed), sc = PENTA[o.minor ? 'min' : 'maj'], mel = [];
-  let last = 2;
-  for (let i = 0; i < 64; i++) { if (i % 2 || r() > o.dens) { mel.push(null); continue; } last = clamp(last + Math.round((r() - 0.5) * 4), 0, sc.length - 1); mel.push(sc[last]); }
-  for (let i = 32; i < 48; i++) mel[i] = mel[i - 32];
-  return Object.assign({ mel }, o);
+/* Temas compuestos a mano. Cada palabra es una corchea: C5, F#4, «.» silencio, «-» sigue sonando la nota anterior */
+const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+function tune(str) {
+  const ev = []; let last = null;
+  for (const tk of str.split(/[\s|]+/).filter(Boolean)) {
+    if (tk === '-') { if (last) last.d += 2; ev.push(null, null); continue; }
+    if (tk === '.') { last = null; ev.push(null, null); continue; }
+    const m = tk.match(/^([A-G])(#|b)?(\d)$/);
+    last = { n: 12 * (+m[3] + 1) + NOTE[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0), d: 2 }; ev.push(last, null);
+  }
+  return ev;
 }
+// Tema de Chispa: aventurero, en do mayor. A (8 compases) + B (8 compases)
+const CHISPA = tune(`
+  C5 - G4 C5 E5 - D5 C5 | A4 - - C5 E5 - D5 C5 | F5 - E5 D5 C5 - A4 C5 | D5 - - - G4 . B4 D5 |
+  C5 - G4 C5 E5 - G5 - | A5 - G5 E5 C5 - E5 G5 | F5 E5 D5 C5 D5 - E5 F5 | E5 - D5 - C5 - . . |
+  A5 - G5 F5 E5 - C5 - | D5 - E5 F5 G5 - - - | E5 - D5 E5 G5 - E5 D5 | C5 - - - A4 . C5 E5 |
+  F5 - - E5 D5 - C5 D5 | E5 - - D5 C5 - B4 - | A4 C5 F5 A5 G5 - F5 E5 | D5 - - - G4 - B4 D5 |`);
+const CH_PROG = [0, -3, 5, 7, 0, -3, 5, 0, 5, 7, 4, -3, 5, 7, 5, 7], CH_Q = 'M m M M M m M M M M m m M M M M'.split(' ');
+// la misma melodía en menor, para la bodega y la colmena
+const CH_PROGm = [0, -4, 5, 7, 0, -4, 5, 0, 5, 7, 3, -4, 5, 7, 5, 7], CH_Qm = 'm M m M m M m m m M M M m M m M'.split(' ');
+// Tema de la Princesa: amenazante, en la menor
+const PRINCESA = tune(`
+  A4 - C5 - E5 D#5 E5 - | A5 - G5 F5 E5 - - - | F5 - E5 - D5 - C5 - | B4 - G#4 - E4 - - - |
+  A4 C5 E5 A5 G#5 - E5 - | F5 - E5 D5 C5 - A4 - | B4 C5 D5 E5 F5 E5 D5 B4 | A4 - - - E4 - A4 - |`);
+const PR_PROG = [0, 0, -4, 7, 0, 5, 7, 0], PR_Q = 'm m M M m m M m'.split(' ');
+const CHM = { mel: CHISPA, prog: CH_PROG, q: CH_Q }, CHm = { mel: CHISPA, prog: CH_PROGm, q: CH_Qm, minor: 1 }, PRI = { mel: PRINCESA, prog: PR_PROG, q: PR_Q };
+const TH = o => Object.assign({ bass: 'x...x...x...x...', kick: '................', snare: '................', hat: 0, lead: 'square', tr: 0 }, o);
+const DR1 = { kick: 'x...x...x...x...', snare: '....x.......x..x', hat: 1 };
 const THEMES = {
-  menu: theme({ seed: 9, bpm: 100, root: 57, prog: [0, -4, 3, -2], minor: 1, dens: 0.55, bass: 'x...x...x...x.o.', kick: 'x.......x.......', snare: '................', hat: 0 }),
-  l1: theme({ seed: 101, bpm: 140, root: 52, prog: [0, 3, -2, 5], minor: 0, dens: 0.72, bass: 'x.ox.ox.x.ox.oxo', kick: 'x...x...x...x...', snare: '....x.......x..x', hat: 1 }),
-  l2: theme({ seed: 33, bpm: 112, root: 45, prog: [0, -4, -2, 0], minor: 1, dens: 0.5, bass: 'x.....x.x.......', kick: 'x.......x.......', snare: '....x.......x...', hat: 0 }),
-  l3: theme({ seed: 57, bpm: 132, root: 55, prog: [0, -5, -3, -1], minor: 0, dens: 0.7, bass: 'x..x..x.x..x.o.o', kick: 'x...x...x...x...', snare: '....x.......x...', hat: 1 }),
-  l4: theme({ seed: 77, bpm: 144, root: 50, prog: [0, 5, 3, -2], minor: 0, dens: 0.75, bass: 'x.xox.xox.xox.xo', kick: 'x...x...x...x...', snare: '....x.......x.x.', hat: 1 }),
-  l5: theme({ seed: 61, bpm: 120, root: 46, prog: [0, 1, -2, -4], minor: 1, dens: 0.6, bass: 'x..x..x...x..x.o', kick: 'x.....x...x.....', snare: '....x.......x...', hat: 1 }),
-  l6: theme({ seed: 13, bpm: 150, root: 49, prog: [0, -2, -4, -5], minor: 1, dens: 0.8, bass: 'xoxoxoxoxoxoxoxo', kick: 'x...x...x...x...', snare: '....x.......x...', hat: 1 }),
-  boss: theme({ seed: 83, bpm: 162, root: 45, prog: [0, 1, 0, -1], minor: 1, dens: 0.85, bass: 'xoxoxoxoxoxoxoxo', kick: 'x.x.x.x.x.x.x.x.', snare: '....x.......x...', hat: 1 }),
-  epica: theme({ soft: 1, style: 'epic', seed: 101, bpm: 84, root: 50, prog: [0, -4, 3, -2], q: ['m', 'M', 'M', 'M'], minor: 1, dens: 0.55, bass: '', kick: '', snare: '', hat: 0 }),
-  oscuro: theme({ soft: 1, style: 'dark', seed: 29, bpm: 56, root: 45, prog: [0, 1, 0, 6], q: ['m', 'M', 'm', 'd'], minor: 1, dens: 0.3, bass: '', kick: '', snare: '', hat: 0 }),
-  final: theme({ soft: 1, style: 'final', seed: 17, bpm: 80, root: 55, prog: [0, 5, 7, 5], q: ['M', 'M', 'M', 'M'], minor: 0, dens: 0.6, bass: '', kick: '', snare: '', hat: 0 }),
+  menu: TH({ ...CHM, root: 43, tr: -5, bpm: 104, bass: 'x.......x...x...', kick: 'x.......x.......', lead: 'triangle' }),
+  l1: TH({ ...CHM, ...DR1, root: 48, bpm: 144, bass: 'x.ox.ox.x.ox.oxo' }),
+  l2: TH({ ...CHm, root: 45, tr: -3, bpm: 108, bass: 'x.....x.x.......', kick: 'x.......x.......', snare: '....x.......x...', lead: 'triangle' }),
+  l3: TH({ ...CHM, ...DR1, root: 50, tr: 2, bpm: 136, bass: 'x..x..x.x..x.o.o', echo: 1 }),
+  l4: TH({ ...CHM, ...DR1, root: 52, tr: 4, bpm: 152, bass: 'x.xox.xox.xox.xo' }),
+  l5: TH({ ...CHM, ...DR1, root: 46, tr: -2, bpm: 122, bass: 'x..x..x...x..x.o', lead: 'triangle', echo: 1 }),
+  l6: TH({ ...CHm, ...DR1, root: 49, tr: 1, bpm: 154, bass: 'xoxoxoxoxoxoxoxo' }),
+  boss: TH({ ...PRI, root: 45, bpm: 162, bass: 'xoxoxoxoxoxoxoxo', kick: 'x.x.x.x.x.x.x.x.', snare: '....x.......x...', hat: 1 }),
+  epica: TH({ ...CHM, soft: 1, style: 'epic', root: 46, tr: -2, bpm: 84 }),
+  oscuro: TH({ ...PRI, soft: 1, style: 'dark', root: 45, bpm: 58 }),
+  final: TH({ ...CHM, soft: 1, style: 'final', root: 48, bpm: 76 }),
 };
+function melAt(th, step) {
+  const e = th.mel[step % th.mel.length]; if (!e) return null;
+  let n = e.n + th.tr; if (th.minor) { const pc = e.n % 12; if (pc === 4 || pc === 9) n -= 1; }
+  return { n, d: e.d };
+}
 const M = { th: null, want: null, step: 0, t: 0, iv: null, g: null };
 const mf = n => 440 * Math.pow(2, (n - 69) / 12);
 function mv(f, t, dur, type, vol) { const o = AC.createOscillator(), g = AC.createGain(); o.type = type; o.frequency.setValueAtTime(f, t); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.008); g.gain.exponentialRampToValueAtTime(0.0001, t + dur); o.connect(g); g.connect(M.g); o.start(t); o.stop(t + dur + 0.02); }
@@ -163,7 +190,7 @@ function playOrch(th, step, t, sp) {
   orchBus();
   const bar = Math.floor(step / 16), bi = bar % th.prog.length, s = step % 16, cr = th.root + th.prog[bi], L = sp * 16;
   const q = (th.q || [])[bi] || (th.minor ? 'm' : 'M'), ch = { m: [0, 3, 7], M: [0, 4, 7], d: [0, 3, 6] }[q];
-  const m = th.mel[step % 64], dark = th.style === 'dark', fin = th.style === 'final';
+  const me = melAt(th, step), dark = th.style === 'dark', fin = th.style === 'final';
   if (s === 0) {
     M.oLP.frequency.setTargetAtTime(dark ? 1500 : 3600, t, 0.5);
     // cuerdas: el acorde en dos octavas, cada nota con dos arcos desafinados y vibrato
@@ -178,7 +205,7 @@ function playOrch(th, step, t, sp) {
     // coro grave ("uuu") y latido
     if (s === 0) [0, 7].forEach(n => ovoice(mf(cr + n), t, L, { type: 'sawtooth', vol: 0.02, att: 1.6, rel: 1.5, cut: 520, bp: 1, q: 4, vib: 6 }));
     if (s === 0 || s === 3) thumpO(t, s === 0 ? 0.35 : 0.22);
-    if (m != null && s % 4 === 2) ovoice(mf(cr + 12 + m), t, sp * 7, { type: 'triangle', vol: 0.07, att: 0.005, pluck: 1 });
+    if (me) { ovoice(mf(me.n - 12), t, sp * me.d, { type: 'sawtooth', vol: 0.05, att: 0.1, rel: 0.8, cut: 900, vib: 6 }); ovoice(mf(me.n), t, sp * 6, { type: 'triangle', vol: 0.04, att: 0.004, pluck: 1 }); }
     if (bi === 3 && s >= 12) otimp(t, mf(cr - 12), 0.12 + (s - 12) * 0.05);
     return;
   }
@@ -186,12 +213,12 @@ function playOrch(th, step, t, sp) {
   const arp = [0, 1, 2, 3, 4, 3, 2, 1], tones = [ch[0], ch[1], ch[2], ch[0] + 12, ch[1] + 12];
   if (s % 2 === 0) ovoice(mf(cr + 24 + tones[arp[(s / 2) % 8]]), t, sp * 6, { type: 'triangle', vol: 0.05, att: 0.004, pluck: 1, pan: ((s / 2) % 8 - 3.5) * 0.15 });
   // cornos con la melodía, y violines una octava arriba
-  if (m != null) {
-    const dur = sp * (th.mel[(step + 2) % 64] == null ? 4 : 2.2);
-    ovoice(mf(cr + 12 + m), t, dur, { type: 'sawtooth', vol: 0.045, att: 0.08, rel: 0.5, cut: 1200, swell: 1.3, vib: 7 });
-    ovoice(mf(cr + 24 + m), t, dur, { type: 'sawtooth', vol: 0.016, att: 0.12, rel: 0.6, cut: 2600, vib: 12, det: 5 });
+  if (me) {
+    const dur = sp * me.d;
+    ovoice(mf(me.n - 12), t, dur, { type: 'sawtooth', vol: 0.045, att: 0.08, rel: 0.5, cut: 1200, swell: 1.3, vib: 7 });
+    ovoice(mf(me.n), t, dur, { type: 'sawtooth', vol: 0.016, att: 0.12, rel: 0.6, cut: 2600, vib: 12, det: 5 });
+    if (fin) ovoice(mf(me.n + 12), t, sp * 8, { type: 'sine', vol: 0.025, att: 0.003, pluck: 1 });
   }
-  if (fin && s % 4 === 0 && m != null) ovoice(mf(cr + 36 + m), t, sp * 8, { type: 'sine', vol: 0.03, att: 0.003, pluck: 1 });
   if (s === 8) otimp(t, mf(cr - 5), 0.18);
   if (th.style === 'epic' && bi === 3 && s >= 12) otimp(t, mf(cr - 12), 0.14 + (s - 12) * 0.04);
   if (th.style === 'epic' && s === 0 && bi === 0) { const b = orchBus(); const n = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain(); n.buffer = nb(); f.type = 'bandpass'; f.frequency.value = 3500; g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.2); n.connect(f); f.connect(g); g.connect(b); n.start(t); n.stop(t + 2.3); }
@@ -201,8 +228,8 @@ function playStep(th, step, t, sp) {
   if (th.soft) return playOrch(th, step, t, sp);
   const bar = Math.floor(step / 16) % th.prog.length, s = step % 16, cr = th.root + th.prog[bar];
   const b = th.bass[s]; if (b === 'x') mv(mf(cr - 12), t, sp * 1.7, 'triangle', 0.32); else if (b === 'o') mv(mf(cr), t, sp * 1.2, 'triangle', 0.24);
-  if (s % 2 === 0) { const ch = th.minor ? [0, 3, 7, 12] : [0, 4, 7, 12]; mv(mf(cr + 12 + ch[(s / 2) % 4]), t, sp * 0.8, 'square', 0.03); }
-  const m = th.mel[step % 64]; if (m != null) mv(mf(cr + 24 + m), t, sp * 1.9, 'square', 0.05);
+  if (s % 2 === 0) { const ch = th.q[bar] === 'm' ? [0, 3, 7, 12] : [0, 4, 7, 12]; mv(mf(cr + 12 + ch[(s / 2) % 4]), t, sp * 0.8, 'square', 0.025); }
+  const me = melAt(th, step); if (me) { const tri = th.lead === 'triangle'; mv(mf(me.n), t, sp * me.d * 0.92, th.lead, tri ? 0.1 : 0.05); if (th.echo) mv(mf(me.n), t + sp * 3, sp * me.d * 0.6, th.lead, tri ? 0.03 : 0.015); }
   if (th.kick[s] === 'x') kick(t);
   if (th.snare[s] === 'x') mnoise(t, 0.12, 0.2, 1200);
   if (th.hat && s % 2 === 1) mnoise(t, 0.03, 0.05, 7000);
@@ -304,6 +331,7 @@ const PIECE = {
   slab: ['plataformas-acequias-0', 0.62], stone: ['plataformas-acequias-1', 0.6, 1], bridge: ['plataformas-acequias-2', 0.66], branch: ['plataformas-acequias-3', 0.62], log: ['plataformas-acequias-4', 0.62],
   stairs: ['plataformas-cerro-0', 0.62, 1], brick: ['plataformas-cerro-1', 0.62], rock: ['plataformas-cerro-2', 0.62, 1], branch2: ['plataformas-cerro-3', 0.62], bench: ['plataformas-cerro-4', 0.6],
   hex: ['plataformas-colmena-0', 0.62], ice: ['plataformas-colmena-1', 0.62], pillar: ['plataformas-colmena-2', 0.62, 1], crystal: ['plataformas-colmena-3', 0.6],
+  kiosk: ['calle-piezas-0', 1, 1], awning: ['calle-piezas-1', 1], busstop: ['calle-piezas-2', 1], bench: ['calle-piezas-3', 1], tram: ['metrotranvia', 0.9], bridge2: ['puente-chapa', 1],
   wet: ['plataformas-termas-0', 0.66], walk: ['plataformas-termas-2', 0.66], boulder: ['plataformas-termas-4', 0.6, 1],
 };
 function hmCore(name) { const t = HM[name].t.filter(v => v >= 0), mid = t.slice(Math.floor(t.length * 0.3), Math.ceil(t.length * 0.7)).sort((a, b) => a - b); return mid[Math.floor(mid.length / 2)] || 0; }
@@ -355,6 +383,10 @@ function builder(o) {
     light(x, y, r = 120) { L.lights.push({ x, y, r }); return B; },
     cart(x, y = L.gy) { L.cart = { x, y }; return B; },
     geyser(x, y = L.gy) { L.gey.push({ x, y, t: Math.random() * 3 }); return B; },
+    // plátano de vereda: se sube por las ramas (plataformas invisibles sobre el dibujo)
+    tree(x, fy = L.gy) { const top = fy - 291 + 6; L.deco.push({ img: 'platano', x, y: top, s: 1 }); for (const [a, c, y] of [[2, 90, 102], [120, 206, 124], [16, 90, 165], [122, 188, 185]]) L.T.push({ flat: 1, invis: 1, x: x + a, y: top + y, w: c - a, h: 6, solid: 0 }); return B; },
+    // acequia hundida en la vereda; con puente de chapa si bridge
+    acq(a, c, bridge) { L.acqs = L.acqs || []; L.acqs.push({ a, c }); B.haz(a, L.gy + 30, c - a, 400, 'acequia'); if (bridge) B.p('bridge2', (a + c) / 2 - 95, L.gy - 2); return B; },
     arena(x0, x1, boss, bx, by, opt = {}) { L.arena = Object.assign({ x0, x1, boss, bx, by, trig: x0 + 60 }, opt); return B; },
   };
   return B;
@@ -389,59 +421,96 @@ function level1() {
   b.arena(loco.x + 6, loco.x + loco.w - 6, 'langosta', loco.x + loco.w * 0.66, null, { trig: loco.x + 40 });
   return L;
 }
+/* ---------- Laberintos: la grilla se convierte en bloques sólidos ---------- */
+const CELL = 50;
+function mazeGrid(cols, rows) {
+  const g = Array.from({ length: rows }, () => Array(cols).fill('#'));
+  const M = { cols, rows, g,
+    carve(c0, r0, c1, r1) { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) g[r][c] = ' '; return M; },
+    fill(c0, r0, c1, r1) { for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) g[r][c] = '#'; return M; },
+  };
+  return M;
+}
+function mazeBuild(b, M, o) {
+  const L = b.L; Object.assign(L, { maze: 1, grid: M.g, cols: M.cols, rows: M.rows, w: M.cols * CELL, h: M.rows * CELL, tex: o.tex, lockMsg: o.lockMsg, keyMsg: o.keyMsg, doorImg: o.doorImg, doorOpenImg: o.doorOpenImg, keyImg: o.keyImg });
+  L.gy = L.h;
+  // bloques: tramos por fila, juntados hacia abajo cuando coinciden
+  const rects = [], openR = new Map();
+  for (let r = 0; r < M.rows; r++) {
+    const now = new Map();
+    let c = 0;
+    while (c < M.cols) { if (M.g[r][c] !== '#') { c++; continue; } let c1 = c; while (c1 + 1 < M.cols && M.g[r][c1 + 1] === '#') c1++; const k = c + ',' + c1; let R = openR.get(k); if (R && R.r1 === r - 1) R.r1 = r; else { R = { c0: c, c1, r0: r, r1: r }; rects.push(R); } now.set(k, R); c = c1 + 1; }
+    openR.clear(); now.forEach((v, k) => openR.set(k, v));
+  }
+  for (const R of rects) L.T.push({ flat: 1, maze: 1, solid: 1, x: R.c0 * CELL, y: R.r0 * CELL, w: (R.c1 - R.c0 + 1) * CELL, h: (R.r1 - R.r0 + 1) * CELL });
+  // la puerta del jefe
+  const [dc, dr0, dr1] = o.door; for (let r = dr0; r <= dr1; r++) { M.g[r][dc] = 'D'; M.g[r][dc + 1] = 'D'; }
+  L.door = { flat: 1, maze: 1, solid: 1, door: 1, x: dc * CELL, y: dr0 * CELL, w: 2 * CELL, h: (dr1 - dr0 + 1) * CELL }; L.T.push(L.door);
+  L.key = { x: o.key[0], y: o.key[1] };
+}
+function solidAt(x, y) {
+  const L = G.L, c = Math.floor(x / CELL), r = Math.floor(y / CELL);
+  if (c < 0 || r < 0 || c >= L.cols || r >= L.rows) return true;
+  const v = L.grid[r][c]; return v === '#' || (v === 'D' && !L.door.dead);
+}
+const cx = c => c * CELL + CELL / 2;   // centro de una columna
 function level2() {
-  const b = builder({ id: 1, bg: 'fondo-bodega', music: 'l2', weapon: 'des', dark: 1, ground: ['#5d4330', '#3a281c', '#7a5a3e'] }), L = b.L, gy = 300;
-  L.w = 4300; L.start = { x: 60, y: gy };
-  b.ground(0, 700).ground(790, 1500).ground(1600, 2500).ground(2660, 3300).ground(3420, 4300);
-  // decorado del fondo
-  for (const x of [120, 980, 1880, 2780, 3700]) b.deco('plataformas-bodega-0', x, gy - 150, 0.62);
-  for (const x of [330, 1250, 2150, 3050, 3950]) { b.deco('deco-bodega-0', x, 70, 0.42); b.light(x + 26, 120, 150); }
-  for (const x of [600, 1450, 2400, 3350]) b.deco('deco-bodega-1', x, 20, 0.5);
-  for (const x of [880, 2250, 3200]) b.deco('deco-bodega-2', x, 0, 0.5);
-  b.deco('deco-bodega-3', 3520, 90, 0.42);
-  // primer tramo
-  b.box('crate', 340).box('barrels', 470).coin(355, 228, 3, 24).coin(490, 190, 3, 24);
-  b.e('oruga', 640, gy);
-  b.p('ledge', 840, 232).p('shelf', 1000, 180).coin(860, 210, 4, 26).coin(1010, 158, 3, 26);
-  b.ladder(1170, 120, gy).p('ledge', 1150, 120).fig(1240, 90, 0).coin(1180, 98, 3, 24);
-  b.e('polilla', 1060, 150).e('escarabajo', 1330, gy).box('barrel', 1420);
-  b.p('ledge', 1515, 258).coin(1530, 236, 3, 24);
-  // segundo tramo
-  b.cart(1700); b.pk('heart', 1820, 260);
-  b.box('crate2', 1920).box('barrels', 2060).p('shelf', 2200, 170).coin(2210, 148, 3, 26);
-  b.fig(2100, 150, 1);
-  b.e('polilla', 2120, 120).e('oruga', 2300, gy).e('polilla', 2420, 170);
-  b.p('ledge', 2540, 268, { mv: { ax: 46, per: 3.2 } }).coin(2560, 240, 3, 24);
-  b.e('escarabajo', 2800, gy).box('crate', 2700);
-  b.ladder(2920, 150, gy).p('ledge', 2895, 150).p('shelf', 3040, 110).fig(3080, 70, 2).coin(2915, 128, 3, 24).pk('bat', 3060, 90);
-  b.e('oruga', 3150, gy).e('polilla', 3250, 140);
-  b.p('ledge', 3300, 262).coin(3320, 240, 3, 24);
-  // arena de la polilla
-  b.p('ledge', 3740, 230).p('ledge', 4060, 230);
-  b.arena(3560, 4290, 'polilla', 4000, 160);
+  // bodega: 4 pisos unidos por escaleras. La palanca abre la puerta de la sala de la polilla (arriba a la derecha)
+  const b = builder({ id: 1, bg: 'fondo-bodega', music: 'l2', weapon: 'des', dark: 1 }), L = b.L, M = mazeGrid(60, 24);
+  M.carve(1, 19, 58, 22).carve(1, 14, 52, 17).carve(1, 8, 58, 11).carve(1, 2, 43, 5).carve(46, 1, 58, 5).carve(44, 3, 45, 5);
+  M.fill(11, 22, 12, 22).fill(19, 22, 20, 22).fill(28, 22, 29, 22).fill(37, 22, 39, 22).fill(53, 22, 54, 22).fill(55, 21, 58, 22);   // abajo
+  M.carve(20, 13, 24, 13).fill(12, 17, 13, 17).fill(40, 17, 41, 17);                                                              // C
+  M.fill(15, 11, 16, 11).fill(25, 11, 26, 11).fill(35, 11, 36, 11).carve(44, 12, 45, 13).fill(50, 11, 51, 11);                    // B: ojo el pozo antes de la palanca
+  M.fill(1, 4, 4, 5).fill(5, 5, 5, 5).fill(9, 5, 10, 5).fill(17, 5, 18, 5).fill(25, 5, 26, 5).fill(36, 5, 37, 5);                  // A
+  M.carve(50, 18, 50, 18).carve(6, 12, 6, 13).carve(30, 6, 30, 7);                                                                // huecos de las escaleras
+  mazeBuild(b, M, { tex: { wall: 'tile-bodega-muro' }, door: [44, 3, 5], key: [cx(57), 600], doorImg: 'bodega-puertas-1', keyImg: 'bodega-puertas-2', lockMsg: 'Tiene candado… En algún lado tiene que haber una palanca.', keyMsg: '¡Clac! Se escuchó una puerta allá arriba.' });
+  b.ladder(cx(50), 900, 1150).ladder(cx(6), 600, 900).ladder(cx(30), 300, 600);
+  L.start = { x: cx(2), y: 1150 };
+  // faroles
+  for (const [y, cs] of [[100, [6, 14, 22, 30, 38]], [400, [4, 12, 20, 28, 36, 44, 52]], [700, [5, 13, 22, 30, 38, 46]], [950, [5, 13, 21, 29, 37, 45, 53]]]) for (const c of cs) { b.deco('deco-bodega-0', cx(c) - 26, y - 14, 0.42); b.light(cx(c), y + 40, 150); }
+  b.light(2625, 120, 230);
+  for (const c of [24, 45]) b.deco('plataformas-bodega-0', cx(c) - 60, 1150 - 76, 0.62);
+  for (const c of [9, 33]) b.deco('plataformas-bodega-0', cx(c) - 60, 600 - 76, 0.62);
+  // abajo
+  b.coin(cx(4), 1120, 5, 30).coin(cx(14), 1120, 4, 30).coin(cx(31), 1120, 4, 30).coin(cx(46), 1120, 3, 30).fig(cx(57), 1020, 0);
+  b.e('oruga', cx(8), 1150).e('escarabajo', cx(24), 1150).e('oruga', cx(33), 1150).e('escarabajo', cx(44), 1150).e('polilla', cx(16), 1050).e('polilla', cx(40), 1040).pk('bat', cx(30), 1110);
+  // C
+  b.p('shelf', cx(22) - 43, 800).fig(cx(22), 720, 1).coin(cx(44), 870, 4, 30).coin(cx(8), 870, 4, 30);
+  b.cart(cx(33), 900); b.pk('heart', cx(3), 870);
+  b.e('escarabajo', cx(15), 900).e('oruga', cx(37), 900).e('polilla', cx(28), 800).e('polilla', cx(46), 790);
+  // B
+  b.coin(cx(9), 570, 4, 30).coin(cx(28), 570, 4, 30).coin(cx(44), 520, 2, 50, 30).pk('bat', cx(40), 570);
+  b.e('oruga', cx(12), 600).e('escarabajo', cx(22), 600).e('escarabajo', cx(48), 600).e('polilla', cx(19), 500).e('polilla', cx(37), 500).e('polilla', cx(53), 510);
+  // A
+  b.fig(cx(2), 170, 2).coin(cx(12), 270, 4, 30).coin(cx(30), 270, 4, 30);
+  b.e('polilla', cx(12), 200).e('polilla', cx(28), 200).e('oruga', cx(21), 300).e('escarabajo', cx(33), 300);
+  // sala de la polilla
+  b.p('ledge', 2400, 230).p('ledge', 2720, 230);
+  b.arena(2300, 2950, 'polilla', 2750, 160, { trigX: 2350, trigY: 320, floorY: 300, minY: 60 });
   return L;
 }
 function level3() {
   const b = builder({ id: 2, bg: 'fondo-acequias', music: 'l3', weapon: 'gom', ground: ['#8a6a4a', '#5a4030', '#b08f68'] }), L = b.L, gy = 300;
-  L.w = 4700; L.start = { x: 60, y: gy };
-  const acq = [[520, 610], [980, 1080], [1460, 1740], [2300, 2390], [2780, 2880], [3300, 3560], [4230, 4300]];
-  let x0 = 0; for (const [a, c] of acq) { b.ground(x0, a); b.water(a, c); x0 = c; } b.ground(x0, 4700);
-  L.acq = acq;
-  b.coin(150, 270, 5, 30).e('oruga', 400, gy);
-  b.p('bridge', 512, 296).coin(530, 262, 3, 24);
-  b.p('slab', 700, 240).p('branch', 820, 175).coin(720, 216, 3, 28).coin(850, 150, 3, 24).e('mosquito', 820, 120);
-  b.pk('pit', 760, 210).pk('pit', 1150, 270);
-  b.e('langosta', 1200, gy).p('slab', 1290, 236).fig(1330, 140, 0);
-  b.p('log', 1470, 300, { mv: { ax: 80, per: 4.2 } }).p('log', 1620, 296, { mv: { ax: 60, per: 3.4, ph: 1.4 } }).coin(1500, 262, 6, 36);
-  b.e('mosquito', 1600, 160);
-  b.cart(1900); b.pk('heart', 2000, 260);
-  b.box('stone', 2120).e('oruga', 2230, gy).p('bridge', 2292, 296).p('branch', 2420, 238).coin(2440, 210, 3, 26).fig(2470, 150, 1);
-  b.e('langosta', 2600, gy).e('mosquito', 2700, 130).pk('pit', 2650, 270);
-  b.p('slab', 2770, 246).p('slab', 2900, 200).p('branch', 3040, 150).coin(2920, 176, 3, 26).coin(3060, 128, 3, 24);
-  b.p('log', 3320, 300, { mv: { ax: 70, per: 3.6 } }).p('slab', 3440, 228, { mv: { ay: 30, per: 3, ph: 0.6 } }).coin(3330, 262, 5, 40);
-  b.fig(3470, 130, 2).e('mosquito', 3460, 120).e('langosta', 3700, gy).pk('pit', 3640, 270).pk('pit', 3760, 270);
-  b.p('slab', 4000, 226).p('slab', 4420, 226);
-  b.arena(3880, 4690, 'libelula', 4400, 130);
+  L.w = 5200; L.start = { x: 60, y: gy };
+  const acq = [[560, 655, 0], [1080, 1175, 1], [1760, 1855, 0], [3060, 3155, 1], [3880, 3975, 0]];
+  let x0 = 0; for (const [a, c] of acq) { b.ground(x0, a); x0 = c; } b.ground(x0, L.w);
+  for (const [a, c, br] of acq) b.acq(a, c, br);
+  // primer tramo: banco, plátano y la primera acequia
+  b.box('bench', 240, gy, { solid: 0 }).coin(255, 215, 3, 22).coin(110, 270, 3, 30).e('oruga', 420, gy);
+  b.tree(720).coin(735, 80, 3, 24).coin(860, 170, 2, 22).fig(765, 80, 0).box('bench', 905, gy, { solid: 0 }).e('mosquito', 960, 120);
+  // kiosco y toldo
+  b.box('kiosk', 1260).coin(1272, 190, 3, 22).box('awning', 1400, gy, { solid: 0 }).coin(1410, 190, 3, 20).pk('pit', 1330, 270).pk('pit', 1480, 270).e('langosta', 1560, gy);
+  b.cart(1950); b.pk('heart', 2040, 260);
+  // el metrotranvía: subite al techo y te lleva por arriba de los bichos
+  L.rails = [2150, 3000];
+  b.p('tram', 2452, gy - 84, { mv: { ax: 302, per: 11 } });
+  b.coin(2200, 150, 15, 50).fig(2900, 118, 1).e('langosta', 2600, gy).e('mosquito', 2400, 110).e('mosquito', 2800, 100).pk('pit', 2300, 270);
+  // segundo plátano, parada de colectivo y bancos
+  b.tree(3250).coin(3265, 80, 3, 24).fig(3295, 80, 2).box('bench', 3435, gy, { solid: 0 }).box('busstop', 3560, gy, { solid: 0 }).coin(3575, 190, 3, 26).box('bench', 3700, gy, { solid: 0 }).e('mosquito', 3650, 120).e('langosta', 3780, gy);
+  b.e('oruga', 4100, gy).pk('pit', 4060, 270).pk('pit', 4160, 270).e('mosquito', 4250, 130);
+  // arena de la libélula
+  b.box('busstop', 4520, gy, { solid: 0 }).box('bench', 4960, gy, { solid: 0 });
+  b.arena(4380, 5190, 'libelula', 4900, 130);
   return L;
 }
 function level4() {
@@ -487,24 +556,35 @@ function level5() {
   return L;
 }
 function level6() {
-  const b = builder({ id: 5, bg: 'fondo-colmena', music: 'l6', weapon: 'des', ice: 1, ground: ['#7fb6e0', '#3d6c9a', '#d8f1ff'] }), L = b.L, gy = 300;
-  L.w = 4700; L.start = { x: 60, y: gy };
-  b.ground(0, 640, gy, { slip: 1 }).ground(760, 1500, gy, { slip: 1 }).ground(1640, 2600, gy, { slip: 1 }).ground(2760, 3500, gy, { slip: 1 }).ground(3620, 4700, gy, { slip: 1 });
-  const spike = (x) => { b.deco('plataformas-colmena-4', x, gy - 104, 0.62, true); b.haz(x + 14, gy - 50, 42, 52, 'cristal'); };
-  b.coin(150, 270, 4, 30).e('oruga', 420, gy); spike(520);
-  b.p('hex', 640, 250).coin(660, 226, 3, 26).e('avispa', 820, 160);
-  b.box('pillar', 920).p('ice', 1080, 200).coin(1100, 176, 3, 26).fig(1140, 120, 0);
-  spike(1250); b.e('polilla', 1300, 150).e('oruga', 1400, gy);
-  b.p('crystal', 1520, 250, { mv: { ay: 50, per: 3.2 } }).coin(1550, 200, 3, 24);
-  b.cart(1760); b.pk('heart', 1850, 260);
-  b.p('hex', 1950, 230).p('hex', 2100, 170).coin(2120, 146, 3, 26).e('avispa', 2150, 110).fig(2160, 100, 1);
-  spike(2250); b.box('pillar', 2380).e('mosquito', 2450, 130).e('oruga', 2500, gy);
-  b.p('crystal', 2620, 240, { mv: { ax: 50, per: 3.4 } }).coin(2640, 210, 3, 24).pk('bat', 2680, 200);
-  b.e('polilla', 2900, 140).p('ice', 2950, 220).p('hex', 3100, 160).spike; spike(3020);
-  b.p('crystal', 3260, 110, { mv: { ay: 30, per: 2.8 } }).fig(3300, 50, 2).e('avispa', 3300, 160);
-  b.p('hex', 3450, 250).e('oruga', 3800, gy).e('mosquito', 3700, 120);
-  b.p('hex', 4060, 214).p('hex', 4420, 214).p('ice', 4240, 150);
-  b.arena(3920, 4690, 'princesa', 4400, 140);
+  // colmena: túneles de hielo con pozos para subir saltando. El cristal-llave abre la membrana de la sala del trono
+  const b = builder({ id: 5, bg: 'fondo-colmena', music: 'l6', weapon: 'des', ice: 1 }), L = b.L, M = mazeGrid(60, 24);
+  M.carve(1, 19, 34, 22).carve(30, 8, 34, 18).carve(1, 8, 58, 11).carve(36, 14, 58, 17).carve(50, 12, 51, 13).carve(55, 12, 58, 13)
+   .carve(4, 6, 7, 7).carve(1, 2, 43, 5).carve(46, 1, 58, 5).carve(44, 3, 45, 5).carve(18, 1, 22, 1).carve(14, 17, 18, 18);
+  M.fill(1, 2, 3, 5);
+  mazeBuild(b, M, { tex: { wall: 'tile-colmena-muro', floor: 'tile-colmena-piso' }, door: [44, 3, 5], key: [cx(42), 900], doorImg: 'colmena-puertas-0', doorOpenImg: 'colmena-puertas-1', keyImg: 'colmena-puertas-2', lockMsg: 'La membrana no se abre. Necesitamos el cristal-llave.', keyMsg: '¡El cristal-llave! Ahora la membrana del trono se abre.' });
+  L.start = { x: cx(3), y: 1150 };
+  const hex = (x, y) => b.p('hex', x, y);
+  // pozo 1 (abajo → medio) y puente
+  [[1502, 1075], [1637, 1000], [1502, 925], [1637, 850], [1502, 775], [1637, 690]].forEach(([x, y]) => hex(x, y)); hex(1568, 600);
+  // pozo 2 (C → medio, a la derecha) y pozo 3 (medio → arriba, a la izquierda)
+  [[2830, 825], [2760, 750], [2830, 675]].forEach(([x, y]) => hex(x, y));
+  [[210, 530], [285, 455], [210, 380]].forEach(([x, y]) => hex(x, y));
+  // escondites de figuritas
+  hex(cx(16) - 56, 1070); b.fig(cx(16), 960, 0);
+  hex(cx(10) - 56, 520); b.fig(cx(10), 450, 1);
+  hex(cx(20) - 56, 220); b.fig(cx(20), 120, 2);
+  // cristales que pinchan
+  const spike = (c, fy) => { b.deco('plataformas-colmena-4', cx(c) - 35, fy - 104, 0.62, true); b.haz(cx(c) - 21, fy - 50, 42, 52, 'cristal'); };
+  spike(10, 1150); spike(22, 1150); spike(16, 600); spike(25, 600); spike(42, 600); spike(46, 900); spike(12, 300); spike(28, 300); spike(38, 300);
+  b.cart(1100, 600);
+  b.coin(cx(5), 1120, 4, 30).coin(cx(26), 1120, 3, 30).coin(1530, 1040, 1).coin(1665, 965, 1).coin(1530, 890, 1).coin(1665, 815, 1).coin(1530, 740, 1);
+  b.coin(cx(19), 570, 4, 30).coin(cx(36), 570, 4, 30).coin(cx(39), 870, 4, 30).coin(cx(18), 270, 4, 30).coin(cx(32), 270, 4, 30).pk('bat', cx(52), 870).pk('bat', cx(9), 270);
+  b.e('oruga', cx(6), 1150).e('avispa', cx(18), 1030).e('oruga', cx(26), 1150);
+  b.e('oruga', cx(20), 600).e('polilla', cx(38), 500).e('avispa', cx(46), 490).e('mosquito', cx(13), 480);
+  b.e('oruga', cx(40), 900).e('avispa', cx(52), 790);
+  b.e('oruga', cx(15), 300).e('avispa', cx(25), 200).e('polilla', cx(33), 190).e('mosquito', cx(40), 200);
+  b.p('hex', 2380, 230).p('hex', 2750, 230);
+  b.arena(2300, 2950, 'princesa', 2700, 140, { trigX: 2350, trigY: 320, floorY: 300, minY: 60 });
   return L;
 }
 const LEVELS = [level1, level2, level3, level4, level5, level6];
@@ -544,15 +624,18 @@ function startLevel(lv, fromCp) {
   let st = fromCp && L.cart ? { x: L.cart.x + 40, y: L.cart.y } : L.start;
   if (fromCp === 'boss' && L.arena) {
     const a = L.arena;
-    if (a.trigY != null) st = { x: 300, y: a.trigY };
+    if (a.floorY != null) st = { x: a.x0 + 70, y: a.floorY };
+    else if (a.trigY != null) st = { x: 300, y: a.trigY };
     else { const x = Math.max(a.x0 + 50, a.trig + 12), q = (() => { G.T = L.T; return surfaceAt(x, 0, 2000); })(); st = { x, y: q ? q.s : L.gy }; }
     G.cp = st; G.bossCp = true; G.cartMet = true;
-    G.pk = G.pk.filter(p => p.type !== 'fig' && (a.trigY != null ? p.y < 400 : p.x > a.x0));
-    G.E = G.E.filter(e => a.trigY != null ? e.y < 300 : e.x > a.x1);
+    G.pk = G.pk.filter(p => p.type !== 'fig' && (L.maze ? p.x > a.x0 : a.trigY != null ? p.y < 400 : p.x > a.x0));
+    G.E = G.E.filter(e => L.maze ? e.x > a.x1 : a.trigY != null ? e.y < 300 : e.x > a.x1);
+    if (L.door) { L.door.dead = 1; G.hasKey = 1; }
   } else if (fromCp && L.cart) { G.cp = { x: L.cart.x + 40, y: L.cart.y }; G.cartMet = true; G.pk = G.pk.filter(p => p.type === 'fig' || p.x > L.cart.x); G.E = G.E.filter(e => e.x > L.cart.x + 120); }
   P = { x: st.x, y: st.y - 2, vx: 0, vy: 0, on: false, face: 1, hp: SV.maxhp, bar: 100, inv: 1, anim: 0, crouch: false, climb: null, shootT: 0, fireCd: 0, energy: 100, ammo: Math.max(SV.ammo, L.weapon === 'gom' ? 12 : 0), hurtT: 0, landT: 0, coyote: 0, ground: null, dead: 0, safe: { x: st.x, y: st.y }, slipV: 0, win: 0 };
   BI = { x: st.x - 40, y: st.y, vy: 0, on: true, face: 1, trail: [], cd: 0, throwT: 0, scare: 0, giftT: 6, anim: 0 };
-  G.cx = clamp(P.x - W * 0.4, 0, Math.max(0, L.w - W)); G.cy = L.vertical ? clamp(P.y - H * 0.65, 0, L.h - H) : 0;
+  G.cx = clamp(P.x - W * 0.4, 0, Math.max(0, L.w - W)); G.cy = L.vertical || L.maze ? clamp(P.y - H * 0.62, 0, L.h - H) : 0;
+  if (L.maze) { bakeMaze(L); G.seen = new Uint8Array(L.cols * L.rows); }
   SV.resume = { lv, cp: fromCp === 'boss' ? 'boss' : !!fromCp }; save();
   hideAll(); $('mute').classList.add('hidden');
   playMusic(L.music);
@@ -563,11 +646,11 @@ function introLines(lv, cp) {
   if (cp) { say('tito', '¡Acá estoy, nena! Seguí que vas bien.'); return; }
   const L = [
     [['bichi', '¡Saltá entre los vagones! Si caés a las vías, perdés un corazón.'], ['chispa', 'Y con el desmutador los bichos vuelven a su tamaño. Nadie sale lastimado.']],
-    [['chispa', 'Qué oscuro… Quedate cerca de los faroles, Bichi.'], ['bichi', 'A las orugas tirales agachada: deslizá para abajo.'], ['bichi', 'Y si tocás BICHI, les tiro un carozo yo.']],
-    [['chispa', 'Sin el desmutador… Bueno, la gomera de Don Tito.'], ['bichi', '¡Yo te junto carozos! Y ojo con las acequias.']],
+    [['chispa', 'Qué oscuro… La cava tiene varios pisos.'], ['bichi', 'La sala del fondo tiene candado. Busquemos una palanca. ¡Mirá el mapita!'], ['bichi', 'A las orugas tirales agachada, y a las polillas, para arriba.']],
+    [['chispa', 'Sin el desmutador… Bueno, la gomera de Don Tito.'], ['bichi', 'Subite a los plátanos y al tranvía. ¡Y no te caigas a la acequia!']],
     [['bichi', '¡Hay que subir hasta el monumento!'], ['chispa', 'Un escalón a la vez. Si me caigo, vuelvo a subir.']],
     [['tito', 'Cuidado con las piletas calientes. Los géiseres te tiran para arriba.'], ['chispa', '¡Ese escarabajo tiene el desmutador en la panza!']],
-    [['ozan', 'Ya reparé el desmutador. Achicala, Chispa. Sin lastimarla.'], ['chispa', 'El hielo resbala. Despacito.']],
+    [['ozan', 'Ya reparé el desmutador. Achicala, Chispa. Sin lastimarla.'], ['bichi', 'El trono está cerrado con una membrana. Hay que encontrar el cristal-llave.'], ['chispa', 'El hielo resbala. Despacito.']],
   ][lv];
   L.forEach(([w, t]) => say(w, t, 3));
 }
@@ -586,6 +669,7 @@ function hurt(src, dmg = 25) {
 }
 function fall(type) {
   if (P.dead || G.clear) return;
+  if (type === 'acequia') type = 'agua';
   if (type === 'agua' || type === 'pileta') { SFX.splash(); puff(P.x, P.y, 14, type === 'agua' ? '#6fd3ff' : '#ffffff', 160, 0.8, 5); }
   P.inv = 0; hurt(null, 50); if (P.hp <= 0) return;
   P.x = P.safe.x; P.y = P.safe.y - 2; P.vx = 0; P.vy = 0; P.inv = 1.8; P.on = false;
@@ -596,15 +680,16 @@ function vibe(ms) { try { navigator.vibrate && navigator.vibrate(ms); } catch (e
 function shoot() {
   const L = G.L, gom = L.weapon === 'gom';
   if (P.fireCd > 0 || P.climb || P.hurtT > 0) return;
-  const hy = P.y - (P.crouch ? 20 : 39), hx = P.x + P.face * (P.crouch ? 30 : 28);
+  const up = P.aimUp; P.upT = up ? 0.4 : 0;
+  const hy = up ? P.y - 92 : P.y - (P.crouch ? 20 : 39), hx = up ? P.x + P.face * 8 : P.x + P.face * (P.crouch ? 30 : 28);
   if (gom) {
     if (P.ammo <= 0) { SFX.empty(); P.fireCd = 0.35; if (!G.saidAmmo || G.t - G.saidAmmo > 6) { G.saidAmmo = G.t; say('bichi', '¡No hay carozos! Juntá los que ves por ahí.', 2); } return; }
     P.ammo--; P.fireCd = 0.34; SFX.sling();
-    G.PS.push({ kind: 'pit', x: hx, y: hy, vx: P.face * 440 + P.vx * 0.3, vy: -70, g: 650, life: 1.4, rot: 0, dmg: 1 });
+    G.PS.push(up ? { kind: 'pit', x: hx, y: hy, vx: P.face * 30 + P.vx * 0.2, vy: -620, g: 650, life: 1.4, rot: 0, dmg: 1 } : { kind: 'pit', x: hx, y: hy, vx: P.face * 440 + P.vx * 0.3, vy: -70, g: 650, life: 1.4, rot: 0, dmg: 1 });
   } else {
     if (P.energy < 12) { SFX.empty(); P.fireCd = 0.3; return; }
     P.energy -= 12; P.fireCd = 0.26; SFX.beam();
-    G.PS.push({ kind: 'beam', x: hx, y: hy, vx: P.face * 540, vy: 0, g: 0, life: 0.7, dmg: 2 });
+    G.PS.push({ kind: 'beam', x: hx, y: hy, vx: up ? 0 : P.face * 540, vy: up ? -540 : 0, g: 0, life: 0.7, dmg: 2 });
   }
   P.shootT = 0.35;
 }
@@ -612,7 +697,9 @@ function updatePlayer(dt) {
   const L = G.L;
   if (P.dead) { P.dead -= dt; P.vy += GRAV * dt * 0.5; if (P.dead <= 0) gameOver(); return; }
   if (P.win) { P.vx = 0; P.anim += dt * 4; return; }
-  P.inv -= dt; P.hurtT -= dt; P.fireCd -= dt; P.shootT -= dt; P.landT -= dt;
+  P.inv -= dt; P.hurtT -= dt; P.fireCd -= dt; P.shootT -= dt; P.landT -= dt; P.upT -= dt;
+  // apuntar para arriba: arriba sin escalera cerca (en el piso se queda quieta)
+  P.aimUp = !!IN.u && !P.climb && P.hurtT <= 0 && !onLadderNear();
   if (L.weapon === 'des') P.energy = Math.min(100, P.energy + 16 * dt);
   const mv = IN.r - IN.l;
   // escaleras
@@ -633,8 +720,8 @@ function updatePlayer(dt) {
   P.crouch = wantCrouch || (P.on && ceil != null && P.y - HH < ceil);
   const hh = P.crouch ? HC : HH;
   // horizontal (en hielo o piedra mojada resbala)
-  const ice = P.ground && (P.ground.slip || (G.L.ice && P.ground.ground) || P.ground.key === 'ice' || P.ground.key === 'wet');
-  const target = P.crouch ? 0 : mv * SPD;
+  const ice = P.ground && (P.ground.slip || (G.L.ice && (P.ground.ground || P.ground.maze)) || P.ground.key === 'ice' || P.ground.key === 'wet');
+  const target = P.crouch || (P.aimUp && P.on) ? 0 : mv * SPD;
   const acc = P.hurtT > 0 ? 2 : P.crouch ? 30 : P.on ? (ice ? 2.2 : 14) : 7;
   P.vx += (target - P.vx) * Math.min(1, dt * acc);
   if (mv && P.hurtT <= 0) P.face = mv;
@@ -660,6 +747,7 @@ function updatePlayer(dt) {
   } else {
     P.y = ny; P.on = false; P.ground = null;
     if (ceil != null && P.y - HH < ceil && tunnelOver(P.x)) { P.y = ceil + HH; P.vy = 0; }
+    if (L.maze) { const top = P.y - hh; if (solidAt(P.x - HW + 2, top) || solidAt(P.x + HW - 2, top)) { P.y = (Math.floor(top / CELL) + 1) * CELL + hh + 0.5; P.vy = 0; } }
   }
   // lugar seguro para volver si te caés
   if (P.on && P.ground && !P.ground.mv && !P.ground.dead && surfaceAt(P.x - 26, P.y - 6, P.y + 6) && surfaceAt(P.x + 26, P.y - 6, P.y + 6) && !L.haz.some(h => Math.abs(h.x + h.w / 2 - P.x) < h.w / 2 + 50)) { P.safe.x = P.x; P.safe.y = P.y; }
@@ -718,7 +806,7 @@ function walkStep(e, sp, dt) {
 }
 function updateEnemy(e, dt) {
   const d = EN[e.type];
-  if (e.st === 'wait') { if (Math.abs(e.x - P.x) < W * 0.75 + 60 && (!G.L.vertical || Math.abs(e.y - P.y) < H)) activate(e); else return; }
+  if (e.st === 'wait') { if (Math.abs(e.x - P.x) < W * 0.75 + 60 && (!(G.L.vertical || G.L.maze) || Math.abs(e.y - P.y) < H * 0.8)) activate(e); else return; }
   e.t += dt;
   if (e.st === 'shrink') { e.k = Math.max(0.22, e.k - dt * 1.8); if (e.k <= 0.22) { e.st = 'gone'; e.gt = 0; } return; }
   if (e.st === 'gone') { e.gt += dt; if (e.fly) { e.cy -= 70 * dt; e.x += Math.sin(e.gt * 9) * 40 * dt + 50 * dt; } else { e.x += 120 * dt * (e.face || 1); } if (e.gt > 1.6) e.dead = 1; return; }
@@ -781,7 +869,7 @@ function damageEnemy(e, dmg, stun) {
   if (e.hp <= 0) {
     e.st = 'shrink'; e.k = 1; SFX.shrink(); const b = eBox(e); puff(b.x, b.y, 12, '#d78bff', 120, 0.6, 4); word(b.x, b.y - 26, pick(['¡ZAP!', '¡PIUM!', '¡FIUU!', '¡ACHICADO!']), '#d78bff');
     G.pk.push({ type: 'coin', x: b.x, y: b.y, vy: -220, drop: 1 });
-    if (G.L.weapon === 'gom' && Math.random() < 0.45) G.pk.push({ type: 'pit', x: b.x + 12, y: b.y, vy: -260, drop: 1 });
+    if (G.L.weapon === 'gom' && Math.random() < 0.7) G.pk.push({ type: 'pit', x: b.x + 12, y: b.y, vy: -260, drop: 1 });
   }
 }
 
@@ -806,7 +894,7 @@ function startBoss() {
 function bossBox(b) { const d = b.d, m = STRIPS[d.strip], w = m.fw * d.s * 0.55 * b.k; if (b.type === 'escarabajo') { const h = m.fh * d.s * 0.45 * b.k; return { x: b.x, y: b.y - h / 2, w, h }; } const h = m.fh * d.s * 0.62 * b.k; return { x: b.x, y: d.fly ? b.y : b.y - m.fh * d.s * 0.5 * b.k, w, h }; }
 function bossHitBox(b) { const d = b.d, m = STRIPS[d.strip], w = m.fw * d.s * 0.7 * b.k, h = m.fh * d.s * 0.92 * b.k; return { x: b.x, y: d.fly ? b.y : b.y - h / 2, w, h }; }
 function eshot(x, y, vx, vy, kind, o = {}) { G.ES.push(Object.assign({ x, y, vx, vy, g: 0, r: 8, kind, life: 4 }, o)); }
-function arenaFloorAt(x) { const q = surfaceAt(x, 0, 1200); return q ? q.s : G.L.gy; }
+function arenaFloorAt(x) { const a = G.L.arena, q = surfaceAt(x, (a && a.minY) || 0, 1200); return q ? q.s : (a && a.floorY) || G.L.gy; }
 function updateBoss(dt) {
   const b = G.boss; if (!b) return;
   const L = G.L, a = L.arena; b.t += dt; b.flash -= dt;
@@ -894,8 +982,9 @@ function updateShots(dt) {
   for (const s of G.PS) {
     s.life -= dt; s.vy += s.g * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.rot = (s.rot || 0) + dt * 14;
     if (s.kind === 'beam' && Math.random() < 0.6) G.fx.push({ x: s.x, y: s.y + rnd(-3, 3), vx: -s.vx * 0.05, vy: rnd(-20, 20), t: 0, life: 0.25, col: pick(['#d78bff', '#fff', '#b04dff']), sz: 2.5 });
-    if (s.x < G.cx - 40 || s.x > G.cx + W + 40 || s.y > G.cy + H + 40) s.life = 0;
-    if (surfaceAt(s.x, s.y - 2, s.y + 6) && s.kind === 'pit') { s.life = 0; puff(s.x, s.y, 4, '#a8693a', 60, 0.3, 3); }
+    if (s.x < G.cx - 40 || s.x > G.cx + W + 40 || s.y > G.cy + H + 40 || s.y < G.cy - 80) s.life = 0;
+    if (G.L.maze && solidAt(s.x, s.y)) { s.life = 0; puff(s.x, s.y, 4, s.kind === 'beam' ? '#d78bff' : '#a8693a', 60, 0.3, 3); }
+    if (s.kind === 'pit' && s.vy > 0 && surfaceAt(s.x, s.y - 2, s.y + 6)) { s.life = 0; puff(s.x, s.y, 4, '#a8693a', 60, 0.3, 3); }
     if (s.life <= 0) continue;
     for (const e of G.E) {
       if (e.st !== 'live') continue; const b = eBox(e);
@@ -937,7 +1026,8 @@ function updatePickups(dt) {
 
 /* ---------- Carozos que aparecen un rato en algún lugar de la pantalla ---------- */
 function updateTempPits(dt) {
-  if (G.L.weapon !== 'gom' || G.clear) return;
+  for (const p of G.pk) if (p.temp) { p.temp -= dt; if (p.temp <= 0) { p.got = 1; puff(p.x, p.y, 6, '#a8693a', 50, 0.4, 3); } }
+  if (G.L.weapon !== 'gom' || G.clear || !G.lock) return;
   G.pitT = (G.pitT == null ? 3 : G.pitT) - dt;
   const live = G.pk.filter(p => p.temp).length;
   const need = P.ammo < 6 ? 3.5 : P.ammo < 14 ? 8 : 16;
@@ -950,7 +1040,6 @@ function updateTempPits(dt) {
       G.pk.push({ type: 'pit', x, y: q.s - 16, temp: 7, big: 1 }); puff(x, q.s - 16, 8, '#ffd21f', 70, 0.4, 3); break;
     }
   }
-  for (const p of G.pk) if (p.temp) { p.temp -= dt; if (p.temp <= 0) { p.got = 1; puff(p.x, p.y, 6, '#a8693a', 50, 0.4, 3); } }
 }
 
 /* ---------- Bichi ---------- */
@@ -1006,21 +1095,34 @@ function updateWorld(dt) {
     G.nearCart = near && !G.lock && !G.clear && !P.dead;
   }
   const L = G.L;
-  if (L.arena && !G.lock && (L.arena.trigY != null ? P.y <= L.arena.trigY && P.on : P.x > L.arena.trig)) startBoss();
+  const AR = L.arena;
+  if (AR && !G.lock && (AR.trigY == null || (P.y <= AR.trigY && P.on)) && (AR.trigX != null ? P.x > AR.trigX : (AR.trigY != null || P.x > AR.trig))) startBoss();
   // cámara
   let tx, ty = 0;
   if (G.lock && L.arena && !L.vertical) { const a = L.arena, aw = a.x1 - a.x0; tx = aw <= W ? a.x0 - (W - aw) / 2 : clamp(P.x - W / 2, a.x0, a.x1 - W); }
   else tx = P.x - W * 0.4 + P.face * 30;
   tx = clamp(tx, L.vertical ? Math.min(0, (L.w - W) / 2) : 0, Math.max(0, L.w - W));
   if (L.vertical) { tx = L.w <= W ? (L.w - W) / 2 : clamp(P.x - W / 2, 0, L.w - W); ty = G.lock ? 0 : clamp(P.y - H * 0.62, 0, L.h - H); }
+  if (L.maze) ty = G.lock ? 0 : clamp(P.y - H * 0.6, 0, L.h - H);
   G.cx += (tx - G.cx) * Math.min(1, dt * (G.lock ? 3 : 6)); G.cy += (ty - G.cy) * Math.min(1, dt * 5);
   if (L.train) G.trainX += 150 * dt;
+}
+function updateMaze(dt) {
+  const L = G.L;
+  const pc = Math.floor(P.x / CELL), pr = Math.floor((P.y - 30) / CELL);
+  for (let r = pr - 3; r <= pr + 3; r++) for (let c = pc - 5; c <= pc + 5; c++) if (r >= 0 && c >= 0 && r < L.rows && c < L.cols) G.seen[r * L.cols + c] = 1;
+  if (L.key && !G.hasKey && Math.abs(P.x - L.key.x) < 30 && Math.abs(P.y - L.key.y) < 50) { G.hasKey = 1; SFX.fig(); vibe(80); word(L.key.x, L.key.y - 90, L.keyImg === 'bodega-puertas-2' ? '¡CLAC!' : '¡CRISTAL!', '#ffd21f'); say('bichi', L.keyMsg, 3); }
+  const d = L.door;
+  if (!d.dead && Math.abs(P.x - (d.x + d.w / 2)) < d.w / 2 + 22 && P.y > d.y && P.y <= d.y + d.h + 4) {
+    if (G.hasKey) { d.dead = 1; SFX.boom(); G.shake = 0.3; puff(d.x + d.w / 2, d.y + d.h / 2, 18, L.doorOpenImg ? '#d78bff' : '#c8a070', 140, 0.7, 5); word(d.x + d.w / 2, d.y - 10, '¡ABIERTO!', '#7ef08a'); }
+    else if (!G.doorSaid || G.t - G.doorSaid > 5) { G.doorSaid = G.t; say('bichi', L.lockMsg, 2.6); }
+  }
 }
 function update(dt) {
   G.t += dt; readInput();
   updateWorld(dt); updatePlayer(dt); if (G.L.train) updateTunnels(dt);
   for (const e of G.E) updateEnemy(e, dt * D().spd); G.E = G.E.filter(e => !e.dead);
-  updateBoss(dt * D().spd); updateShots(dt); updateTempPits(dt); updatePickups(dt); updateBichi(dt);
+  updateBoss(dt * D().spd); updateShots(dt); updateTempPits(dt); if (G.L.maze) updateMaze(dt); updatePickups(dt); updateBichi(dt);
   for (const f of G.fx) { f.t += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 200 * dt; } G.fx = G.fx.filter(f => f.t < f.life);
   for (const w of G.words) w.t += dt; G.words = G.words.filter(w => w.t < 0.9);
   if (G.says.length) { G.sayT += dt; if (G.sayT > G.says[0].d) { G.says.shift(); G.sayT = 0; } }
@@ -1083,11 +1185,75 @@ function drawHazards() {
 }
 function drawT(o) {
   if (o.ground) return drawGround(o);
-  if (o.ladTop || !o.img) return;
+  if (o.door) return drawDoor(o);
+  if (o.ladTop || o.invis || o.maze || !o.img) return;
   const im = IMG[o.img]; if (!im) return;
   const x = o.x - G.cx, y = o.y - G.cy; if (x > W + 10 || x + o.w < -10 || y > H || y + o.h < -10) return;
   const r = o.wagon && !o.loco ? Math.sin(G.t * 30 + o.x) * 0.5 : 0;
   ctx.drawImage(im, x, y + r, o.w, o.h);
+}
+function drawDoor(o) {
+  const L = G.L, im = IMG[o.dead ? L.doorOpenImg : L.doorImg]; if (!im) return;
+  const x = o.x - G.cx, y = o.y - G.cy; if (x > W || x + o.w < 0 || y > H || y + o.h < 0) return;
+  const h = o.h + 4, w = im.width * h / im.height; ctx.drawImage(im, x + o.w / 2 - w / 2, y - 2, w, h);
+}
+function drawKey() {
+  const L = G.L, k = L.key, im = IMG[L.keyImg]; if (!k || !im) return;
+  const x = k.x - G.cx, y = k.y - G.cy; if (x < -80 || x > W + 80 || y < -150 || y > H + 50) return;
+  if (L.keyImg === 'bodega-puertas-2') {   // palanca en la pared: se baja cuando la tirás
+    const w = 47, h = 67; ctx.save(); ctx.translate(x, y - 60); if (G.hasKey) ctx.scale(-1, 1); ctx.drawImage(im, -w / 2, -h / 2, w, h); ctx.restore();
+    if (!G.hasKey) { ctx.globalAlpha = 0.3 + Math.sin(G.t * 5) * 0.2; ctx.strokeStyle = '#ffd21f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y - 60, 40, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1; }
+  } else {                                 // cristal sobre un pedestal: al agarrarlo queda el pedestal
+    const w = 46, h = 90;
+    if (G.hasKey) { const cut = im.height * 0.47; ctx.drawImage(im, 0, cut, im.width, im.height - cut, x - w / 2, y - h * 0.53, w, h * 0.53); }
+    else { ctx.drawImage(im, x - w / 2, y - h + Math.sin(G.t * 3) * 2, w, h); }
+  }
+}
+function bakeMaze(L) {
+  const c = document.createElement('canvas'); c.width = L.w; c.height = L.h; const x = c.getContext('2d');
+  const pat = name => { const im = IMG[name]; const t = document.createElement('canvas'); t.width = t.height = 100; if (im) t.getContext('2d').drawImage(im, 0, 0, 100, 100); return x.createPattern(t, 'repeat'); };
+  const wall = pat(L.tex.wall), floor = L.tex.floor ? pat(L.tex.floor) : null, g = L.grid;
+  const S = (r, cc) => r < 0 || cc < 0 || r >= L.rows || cc >= L.cols || g[r][cc] === '#';
+  x.fillStyle = wall;
+  for (let r = 0; r < L.rows; r++) for (let cc = 0; cc < L.cols; cc++) if (g[r][cc] === '#') x.fillRect(cc * CELL, r * CELL, CELL, CELL);
+  for (let r = 0; r < L.rows; r++) for (let cc = 0; cc < L.cols; cc++) {
+    if (g[r][cc] !== '#') continue; const X = cc * CELL, Y = r * CELL;
+    if (!S(r - 1, cc)) { x.fillStyle = floor || 'rgba(255,225,170,.28)'; x.fillRect(X, Y, CELL, 12); x.fillStyle = '#120a1f'; x.fillRect(X, Y, CELL, 3); }
+    if (!S(r + 1, cc)) { x.fillStyle = 'rgba(0,0,0,.4)'; x.fillRect(X, Y + CELL - 9, CELL, 9); x.fillStyle = '#120a1f'; x.fillRect(X, Y + CELL - 3, CELL, 3); }
+    if (!S(r, cc - 1)) { x.fillStyle = '#120a1f'; x.fillRect(X, Y, 3, CELL); }
+    if (!S(r, cc + 1)) { x.fillStyle = '#120a1f'; x.fillRect(X + CELL - 3, Y, 3, CELL); }
+  }
+  L.mazeCanvas = c;
+}
+function drawMaze() {
+  const L = G.L, c = L.mazeCanvas; if (!c) return;
+  ctx.fillStyle = 'rgba(13,6,24,.38)'; ctx.fillRect(0, 0, W, H);
+  const sx = Math.max(0, G.cx), sy = Math.max(0, G.cy), sw = Math.min(W, L.w - sx), sh = Math.min(H, L.h - sy);
+  if (sw > 0 && sh > 0) ctx.drawImage(c, sx, sy, sw, sh, sx - G.cx, sy - G.cy, sw, sh);
+}
+function drawMinimap() {
+  const L = G.L, k = 2, mw = L.cols * k, mh = L.rows * k, x0 = W - mw - 14, y0 = 52;
+  ctx.fillStyle = 'rgba(18,10,31,.7)'; ctx.fillRect(x0 - 3, y0 - 3, mw + 6, mh + 6); ctx.strokeStyle = '#120a1f'; ctx.lineWidth = 2; ctx.strokeRect(x0 - 3, y0 - 3, mw + 6, mh + 6);
+  for (let r = 0; r < L.rows; r++) for (let c = 0; c < L.cols; c++) {
+    if (!G.seen[r * L.cols + c]) continue; const v = L.grid[r][c];
+    ctx.fillStyle = v === '#' ? 'rgba(160,130,190,.55)' : v === 'D' ? (L.door.dead ? '#7ef08a' : '#ff5a5a') : 'rgba(255,247,230,.18)';
+    ctx.fillRect(x0 + c * k, y0 + r * k, k, k);
+  }
+  const kc = Math.floor(L.key.x / CELL), kr = Math.floor((L.key.y - 20) / CELL);
+  if (!G.hasKey && G.seen[kr * L.cols + kc]) { ctx.fillStyle = '#ffd21f'; ctx.fillRect(x0 + kc * k - 1, y0 + kr * k - 1, 4, 4); }
+  if (Math.floor(G.t * 3) % 2) { ctx.fillStyle = '#5fe06a'; ctx.fillRect(x0 + Math.floor(P.x / CELL) * k - 1, y0 + Math.floor((P.y - 30) / CELL) * k - 1, 4, 4); }
+}
+function drawStreet() {
+  const L = G.L;
+  if (L.rails) { const a = L.rails[0] - G.cx, b = L.rails[1] - G.cx, y = L.gy - G.cy; ctx.fillStyle = '#3a2a22'; for (let x = a - ((a % 24) + 24) % 24; x < b; x += 24) if (x > -20 && x < W) ctx.fillRect(x, y + 2, 14, 5); ctx.fillStyle = '#b9b2c4'; ctx.fillRect(Math.max(a, -10), y, Math.min(b, W + 10) - Math.max(a, -10), 3); }
+  const im = IMG.acequia; if (!L.acqs || !im) return;
+  for (const q of L.acqs) {
+    const k = (q.c - q.a) / 90, x = q.a - 50 * k - G.cx, y = L.gy - 18 * k - G.cy, w = 190 * k, h = 87 * k;
+    if (x > W || x + w < 0) continue;
+    ctx.fillStyle = (L.ground || [])[1] || '#5a4030'; ctx.fillRect(x + 4, y + h - 4, w - 8, H);
+    ctx.drawImage(im, x, y, w, h);
+  }
+  for (const o of G.T) if (o.key === 'bridge2') drawT(o);   // el puente va por encima de la acequia
 }
 function drawLadders() {
   for (const l of G.L.lad) { const im = IMG[l.img]; if (!im) continue; const w = im.width * l.s, hh = im.height * l.s; const x = l.x - w / 2 - G.cx; if (x > W || x + w < 0) continue; for (let y = l.top - 8; y < l.bot; y += hh * 0.92) { const h = Math.min(hh, l.bot - y + 4); ctx.drawImage(im, 0, 0, im.width, h / l.s, x, y - G.cy, w, h); } }
@@ -1128,6 +1294,7 @@ function chispaFrame() {
   if (P.win) return ['chispa-festejo', Math.floor(P.anim) % 3];
   if (P.dead || P.hurtT > 0) return ['chispa-golpe', P.dead ? (P.dead > 0.6 ? 1 : 2) : 0];
   if (P.climb) return ['chispa-trepa', Math.floor(P.anim) % 4];
+  if (P.aimUp || P.upT > 0) return [gom ? 'chispa-arriba-gom' : 'chispa-arriba-des', (P.on ? 0 : 2) + (P.shootT > 0.18 ? 1 : 0)];
   if (P.crouch) return ['chispa-agachada', P.shootT > 0 && !gom ? 2 : 1];
   if (!P.on) return ['chispa-salto', P.vy < -250 ? 1 : P.vy < 200 ? 2 : 3];
   if (P.landT > 0) return ['chispa-salto', 4];
@@ -1154,7 +1321,7 @@ function drawBichi() {
 function drawShots() {
   for (const s of G.PS) {
     const x = s.x - G.cx, y = s.y - G.cy;
-    if (s.kind === 'beam') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, 0, x, y, 16); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(215,139,255,.9)'); g.addColorStop(1, 'rgba(150,40,255,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, 20, 8, 0, 0, TAU); ctx.fill(); ctx.restore(); }
+    if (s.kind === 'beam') { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(x, y, 0, x, y, 16); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(215,139,255,.9)'); g.addColorStop(1, 'rgba(150,40,255,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, 20, 8, Math.atan2(s.vy, s.vx), 0, TAU); ctx.fill(); ctx.restore(); }
     else { ctx.save(); ctx.translate(x, y); ctx.rotate(s.rot); ctx.fillStyle = '#a8693a'; ctx.strokeStyle = '#120a1f'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, 6, 4.5, 0, 0, TAU); ctx.fill(); ctx.stroke(); ctx.strokeStyle = '#6b3c1c'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(-4, 0); ctx.lineTo(4, 0); ctx.stroke(); ctx.restore(); }
   }
   for (const s of G.ES) {
@@ -1214,6 +1381,7 @@ function drawHUD() {
   else { ctx.fillStyle = '#2a1840'; ctx.fillRect(wx + 40, wy + 11, 58, 9); ctx.fillStyle = P.energy < 12 ? '#ff6b6b' : '#d78bff'; ctx.fillRect(wx + 40, wy + 11, 58 * P.energy / 100, 9); ctx.strokeRect(wx + 40, wy + 11, 58, 9); }
   // figuritas del nivel
   for (let i = 0; i < 3; i++) { const has = (SV.fig[G.lv] >> i) & 1, x = W - 150 + i * 22, y = 10; ctx.fillStyle = has ? '#fff' : 'rgba(255,255,255,.18)'; ctx.fillRect(x, y, 17, 22); ctx.strokeStyle = '#120a1f'; ctx.lineWidth = 2; ctx.strokeRect(x, y, 17, 22); if (has) { ctx.fillStyle = '#e2357a'; ctx.fillRect(x + 3, y + 3, 11, 10); } }
+  if (G.L.maze) drawMinimap();
   // pausa
   ctx.fillStyle = '#fff'; ctx.strokeStyle = '#120a1f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(W - 30, 26, 18, 0, TAU); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#120a1f'; ctx.fillRect(W - 37, 18, 5, 16); ctx.fillRect(W - 28, 18, 5, 16);
   // jefe
@@ -1267,10 +1435,11 @@ function render() {
   else if (L.vertical) { const im = IMG[L.bg]; if (im) { const w = Math.max(W, 420), h = im.height * w / im.width, y = -(G.cy / Math.max(1, L.h - H)) * (h - H); ctx.drawImage(im, (W - w) / 2, y, w, h); } }
   else drawBgImage(L.bg, 0.3);
   if (L.vertical) { ctx.fillStyle = 'rgba(13,6,24,.25)'; ctx.fillRect(0, 0, W, H); }
+  if (L.maze) drawMaze();
   for (const d of L.deco) { const im = IMG[d.img]; if (!im) continue; const x = d.x - G.cx, y = d.y - G.cy, w = im.width * d.s, h = im.height * d.s; if (x > W || x + w < 0) continue; ctx.drawImage(im, x, y, w, h); }
   drawHazards();
   for (const o of G.T) drawT(o);
-  drawLadders();
+  drawLadders(); drawStreet(); if (L.maze) drawKey();
   if (L.cart) { const im = IMG['puesto-tito']; if (im) { const s = 0.42, w = im.width * s, h = im.height * s, x = L.cart.x - G.cx, y = L.cart.y - G.cy - h + 4; if (x < W && x + w > 0) { ctx.drawImage(im, x, y, w, h); if (G.nearCart) { ctx.textAlign = 'center'; outlined('PUESTO DE DON TITO', x + w / 2, y - 10, 13, '#7ef08a'); } } } }
   drawGeysers();
   drawPickups(); drawEnemies(); drawBoss(); drawBichi(); drawChispa(); drawShots();
@@ -1292,12 +1461,12 @@ const COMIC = {
     ['h-prologo-4', '—Llevate esto —dijo la Dra. Ozán—. El desmutador no lastima: devuelve a los bichos a su tamaño.', 'epica'],
     ['h-prologo-5', 'Sin nave, había que ir a pie. Chispa y Bichi subieron al techo del Trasandino.', 'epica'],
   ],
-  c0: [['h-1a', 'La Princesa escapó entre los viñedos hacia una bodega abandonada.', 'epica'], ['h-1b', 'Abajo, en la cava, todo estaba oscuro. Al fondo brillaba algo violeta.', 'oscuro']],
-  c1: [['h-2a', '—¡Esto es mío ahora! —La Princesa le arrancó el desmutador de las manos y se fue riendo.', 'oscuro'], ['h-2b', 'En la mochila había una gomera vieja con una nota: «Por las dudas. Tito.»', 'epica']],
-  c2: [['h-3', 'Desde el lago del parque lo vieron: el enjambre se juntaba arriba del Cerro de la Gloria.', 'epica']],
-  c3: [['h-4', 'Don Tito los pasó a buscar con la camioneta. —A Cacheuta. Ahí se esconde el grandote.', 'epica']],
-  c4: [['h-5a', '¡El escarabajo cayó y escupió el desmutador! Chispa lo agarró en el aire.', 'epica'], ['h-5b', 'Don Tito había arreglado la Puelche. Rumbo al glaciar violeta.', 'epica'], ['h-6', 'En el trono de la colmena, la Princesa los esperaba.', 'oscuro']],
-  c5: [['h-final-1', '¡Zzzap! El rayo le dio de lleno y la Princesa empezó a achicarse.', 'final'], ['h-final-2', 'Quedó chiquita, del tamaño de Bichi. Bichi le convidó una uva. Amigos.', 'final'], ['h-final-3', 'Esa noche hubo asado en el hangar. Mendoza estaba a salvo… por ahora.', 'final']],
+  c0: [['h-1c', 'La Langosta Maquinista volvió a su tamaño y saltó del tren con su gorrita. El tren frenó en seco.', 'epica'], ['h-1d', '—Ojo, nena —dijo Don Tito por el reloj—. En la cava no hay señal. Desde acá no los puedo ayudar.', 'epica'], ['h-1a', 'La Princesa escapó entre los viñedos hacia una bodega abandonada.', 'epica'], ['h-1b', 'Abajo, en la cava, todo estaba oscuro. Al fondo brillaba algo violeta.', 'oscuro']],
+  c1: [['h-2c', 'La Polilla, chiquita otra vez, se escapó por una rendija hacia la luz.', 'epica'], ['h-2a', '—¡Esto es mío ahora! —La Princesa le arrancó el desmutador de las manos y se fue riendo.', 'oscuro'], ['h-2b', 'En la mochila había una gomera vieja con una nota: «Por las dudas. Tito.»', 'epica'], ['h-2d', 'Salieron a la ciudad de noche. Por las acequias corría agua con luz, y arriba pasaba el enjambre.', 'oscuro']],
+  c2: [['h-3a', 'La Libélula se posó en una flor del lago. Bichi no le sacaba los ojos de encima.', 'epica'], ['h-3b', 'En los Portones del Parque, Chispa llenó la mochila de carozos. Bichi llevaba el suyo con orgullo.', 'epica'], ['h-3', 'Desde el lago lo vieron: el enjambre se juntaba arriba del Cerro de la Gloria.', 'epica'], ['h-3c', 'Allá arriba, junto al monumento, la Princesa se reía. Desde ahí veía toda Mendoza.', 'oscuro']],
+  c3: [['h-4a', 'Llegaron a la cima sin aire. Bichi se durmió encima de Chispa. El avispón, chiquito, se fue zumbando.', 'epica'], ['h-4', 'Don Tito los pasó a buscar con la camioneta. —A Cacheuta. Ahí se esconde el grandote.', 'epica'], ['h-4b', 'El viejo hotel termal estaba en ruinas, envuelto en vapor.', 'oscuro'], ['h-4c', 'Adentro, la Princesa le daba de comer el desmutador a un escarabajo enorme.', 'oscuro']],
+  c4: [['h-5a', '¡El escarabajo cayó y escupió el desmutador! Chispa lo agarró en el aire.', 'epica'], ['h-5c', 'La Dra. Ozán le sacó el pegote y lo dejó como nuevo. Bichi probó el pegote. No le gustó.', 'epica'], ['h-5b', 'Don Tito había arreglado la Puelche. Rumbo al glaciar violeta.', 'epica'], ['h-6', 'En el trono de la colmena, la Princesa los esperaba.', 'oscuro']],
+  c5: [['h-final-1', '¡Zzzap! El rayo le dio de lleno y la Princesa empezó a achicarse.', 'final'], ['h-final-2', 'Quedó chiquita, del tamaño de Bichi. Bichi le convidó una uva. Amigos.', 'final'], ['h-final-3', 'Esa noche hubo asado en el hangar. Mendoza estaba a salvo…', 'final'], ['h-final-4', '…pero en lo más hondo del glaciar, otro huevo empezaba a brillar. Esta vez, dorado.', 'oscuro']],
 };
 // cada figurita del álbum es una viñeta de la historia
 const ALBUM = ['h-prologo-1', 'h-prologo-2', 'h-prologo-3', 'h-prologo-4', 'h-prologo-5', 'h-1a', 'h-1b', 'h-2a', 'h-2b', 'h-3', 'h-4', 'h-5a', 'h-5b', 'h-6', 'h-final-1', 'h-final-2', 'h-final-3', 'portada-huevo'];
@@ -1472,6 +1641,6 @@ loadAll(CORE, k => { $('lbar').style.width = Math.round(k * 100) + '%'; }).then(
   document.fonts && document.fonts.load('20px "Luckiest Guy"');
   backTrap(); $('lbar').parentElement.classList.add('hidden'); $('ltxt').textContent = 'Subí el volumen 🔊'; $('lgo').classList.remove('hidden');
   // las viñetas se cargan de fondo
-  setTimeout(() => ALBUM.forEach(n => { const i = new Image(); i.src = 'a/' + n + '.webp'; }), 400);
+  setTimeout(() => Object.values(COMIC).flat().map(c => c[0]).forEach(n => { const i = new Image(); i.src = 'a/' + n + '.webp'; }), 400);
   const q = new URLSearchParams(location.search); if (q.has('nivel')) { hideAll(); audioOn(); startLevel(clamp(+q.get('nivel') - 1, 0, 5), q.has('puesto')); }
 });
