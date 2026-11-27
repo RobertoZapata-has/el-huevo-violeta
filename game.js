@@ -1497,7 +1497,7 @@ function toMenu() {
   if (G) { G.run = false; } G = null; hideAll(); show('menu'); $('mute').classList.remove('hidden'); $('shopBtn').classList.add('hidden');
   $('bResume').classList.toggle('hidden', !SV.resume);
   $('bPlay').textContent = SV.unlocked > 1 || SV.seen.prologo ? (SV.beaten ? 'JUGAR DE NUEVO' : 'JUGAR') : 'EMPEZAR';
-  $('mute').textContent = SV.mute ? '✕' : '♪'; drawDiff();
+  $('mute').textContent = SV.mute ? '✕' : '♪'; drawDiff(); diffOpen(false);
   playMusic('menu'); updInstall(); checkRotate();
 }
 function playStory() {
@@ -1505,7 +1505,14 @@ function playStory() {
   if (lv === 0 && !SV.seen.prologo) playComic('prologo', () => startLevel(0));
   else startLevel(lv);
 }
-function drawDiff() { $('diff').innerHTML = DIFF.map((d, i) => `<button class="chip${i === SV.diff ? ' on' : ''}" data-i="${i}">${d.name}</button>`).join(''); $('diffTxt').textContent = D().desc; $('diff').querySelectorAll('button').forEach(b => b.onclick = () => { SV.diff = +b.dataset.i; save(); drawDiff(); SFX.pick(); }); }
+function drawDiff() {
+  $('diffBtn').textContent = D().name + ' ▾'; $('diffBtn').setAttribute('aria-label', 'Dificultad: ' + D().name);
+  $('diff').innerHTML = DIFF.map((d, i) => `<button class="chip${i === SV.diff ? ' on' : ''}" data-i="${i}">${d.name}</button>`).join(''); $('diffTxt').textContent = D().desc;
+  $('diff').querySelectorAll('button').forEach(b => b.onclick = e => { e.stopPropagation(); SV.diff = +b.dataset.i; save(); drawDiff(); SFX.pick(); setTimeout(() => diffOpen(false), 350); });
+}
+function diffOpen(on) { $('diffMenu').classList.toggle('hidden', !on); $('diffBtn').setAttribute('aria-expanded', on ? 'true' : 'false'); }
+$('diffBtn').onclick = e => { e.stopPropagation(); diffOpen($('diffMenu').classList.contains('hidden')); };
+document.addEventListener('click', e => { if (!$('diffMenu').classList.contains('hidden') && !e.target.closest('.diffBox')) diffOpen(false); });
 $('bPlay').onclick = () => { audioOn(); playStory(); };
 $('bResume').onclick = () => { audioOn(); const r = SV.resume; if (r) startLevel(r.lv, r.cp); };
 $('bLevels').onclick = () => {
@@ -1657,12 +1664,13 @@ function checkRotate() {
 
 /* ---------- Instalar ---------- */
 let installEvt = null;
-const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+const standalone = () => (window.matchMedia && ['standalone', 'fullscreen', 'minimal-ui', 'window-controls-overlay'].some(m => matchMedia('(display-mode: ' + m + ')').matches)) || navigator.standalone === true || document.referrer.startsWith('android-app://');
 const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const onPages = /github\.io$/.test(location.hostname) || location.hostname === 'localhost';
-function updInstall() { $('bInstall').classList.toggle('hidden', standalone()); }
-addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; updInstall(); });
-addEventListener('appinstalled', () => { installEvt = null; updInstall(); toast('¡El Huevo Violeta instalado!'); });
+if (standalone() && !SV.installed) { SV.installed = true; save(); }
+function updInstall() { $('bInstall').classList.toggle('hidden', standalone() || (SV.installed && !installEvt)); }
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (SV.installed) { SV.installed = false; save(); } updInstall(); });
+addEventListener('appinstalled', () => { installEvt = null; SV.installed = true; save(); updInstall(); toast('¡El Huevo Violeta instalado!'); });
 const PAGES_URL = 'https://robertozapata-has.github.io/el-huevo-violeta/';
 $('bInstall').onclick = async () => {
   if (installEvt) { installEvt.prompt(); try { await installEvt.userChoice; } catch (e) {} installEvt = null; updInstall(); return; }

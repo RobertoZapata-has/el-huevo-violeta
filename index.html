@@ -61,13 +61,15 @@ p{margin:0;max-width:520px;font-weight:600;line-height:1.4}
 .fig .hole{width:100%;aspect-ratio:16/9;display:grid;place-items:center;background:repeating-linear-gradient(45deg,#e9dcc4 0 8px,#f3e8d3 8px 16px);border-radius:3px;font:400 28px 'Luckiest Guy';color:#b8a27c}
 .fig small{display:block;font-weight:800;font-size:11px;margin-top:4px}
 /* historieta */
-#comic{background:#0d0618;padding:0;gap:0}
-#comic .pg{position:relative;width:min(100vw,calc((100vh - 8px) * 16/9));max-height:100vh;aspect-ratio:16/9}
+/* historieta: la imagen entera arriba y el texto en un cartel abajo, así nunca tapa nada del dibujo */
+#comic{background:#0d0618;padding:6px max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));gap:6px;justify-content:center}
+#comic .pg{position:relative;height:min(calc(100vh - 92px),calc((100vw - 16px) * 9/16));aspect-ratio:16/9;max-width:100%;border:3px solid var(--ink);box-shadow:5px 5px 0 #000}
 #comic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .5s}
 #comic img.on{opacity:1}
-#cap{position:absolute;left:3%;bottom:4%;max-width:70%;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:10px 14px;font-weight:800;font-size:clamp(13px,2.1vw,19px);line-height:1.3;text-align:left;transform:rotate(-.6deg)}
+#comic .capRow{display:flex;gap:10px;align-items:center;width:min(100%,calc((100vh - 92px) * 16/9 + 6px),calc(100vw - 16px))}
+#cap{flex:1;min-height:58px;display:flex;align-items:center;background:var(--paper);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 #000;padding:6px 12px;font-weight:800;font-size:clamp(12px,1.9vw,17px);line-height:1.25;text-align:left}
 #cskip{position:fixed;top:max(10px,env(safe-area-inset-top));right:max(10px,env(safe-area-inset-right));z-index:7}
-#cnext{position:fixed;bottom:max(12px,env(safe-area-inset-bottom));right:max(12px,env(safe-area-inset-right));z-index:7}
+#cnext{flex:none}
 /* tienda */
 .shop{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:8px;margin:8px 0}
 .item{background:#fff;border:3px solid var(--ink);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:4px;align-items:center;box-shadow:3px 3px 0 var(--ink)}
@@ -85,7 +87,11 @@ p{margin:0;max-width:520px;font-weight:600;line-height:1.4}
 @keyframes rot{0%,20%{transform:rotate(0)}60%,100%{transform:rotate(-90deg)}}
 #shopBtn{position:fixed;z-index:4;left:50%;transform:translateX(-50%);bottom:max(14px,env(safe-area-inset-bottom))}
 .face{width:110px;height:110px;border:4px solid var(--ink);border-radius:12px;box-shadow:4px 4px 0 var(--ink);background:var(--cy);object-fit:cover}
-.diffBox{display:flex;flex-direction:column;align-items:center;gap:4px}
+.diffBox{display:flex;flex-direction:column;align-items:center;gap:4px;position:relative}
+.cornerL{position:fixed!important;top:max(12px,env(safe-area-inset-top));left:max(12px,env(safe-area-inset-left));align-items:flex-start!important;z-index:6}
+.diffMenu{position:absolute;top:calc(100% + 6px);left:0;z-index:3;background:rgba(18,10,31,.94);border:3px solid var(--ink);border-radius:14px;padding:8px 10px;display:flex;flex-direction:column;gap:6px;align-items:center;width:max-content;box-shadow:4px 4px 0 #000}
+#diffBtn{background:rgba(255,255,255,.92);font-size:13px;padding:5px 10px}
+.diffT{font:400 13px "Luckiest Guy",Impact;color:var(--yel);letter-spacing:1px}
 .diffBox small{font-weight:800;font-size:12px;text-shadow:1px 1px 0 var(--ink)}
 .chip{font:400 14px 'Luckiest Guy',Impact;letter-spacing:.5px;color:var(--ink);background:#fff;border:3px solid var(--ink);border-radius:999px;padding:6px 11px;box-shadow:2px 2px 0 var(--ink);cursor:pointer;min-height:36px}
 .chip.on{background:var(--mag);color:#fff}
@@ -125,8 +131,8 @@ table.rec tr.me td{background:#ffe680}
 <div class="scr hidden" id="menu">
   <h1>EL HUEVO VIOLETA</h1>
   <div class="sub">UNA AVENTURA DE CHISPA Y BICHI</div>
+  <div class="diffBox cornerL"><button class="chip" id="diffBtn" aria-expanded="false" aria-controls="diffMenu"></button><div class="diffMenu hidden" id="diffMenu"><b class="diffT">DIFICULTAD</b><div class="row" id="diff"></div><small id="diffTxt"></small></div></div>
   <div class="col">
-    <div class="diffBox"><div class="row" id="diff"></div><small id="diffTxt"></small></div>
     <button class="btn hidden" id="bResume">CONTINUAR</button>
     <button class="btn" id="bPlay">JUGAR</button>
     <div class="row"><button class="btn alt sm" id="bLevels">NIVELES</button><button class="btn alt sm" id="bAlbum">ÁLBUM</button><button class="btn alt sm" id="bRecords">RÉCORDS</button></div>
@@ -150,9 +156,9 @@ table.rec tr.me td{background:#ffe680}
 </div>
 
 <div class="scr hidden" id="comic">
-  <div class="pg"><img id="cimgA" alt=""><img id="cimgB" alt=""><div id="cap"></div></div>
+  <div class="pg"><img id="cimgA" alt=""><img id="cimgB" alt=""></div>
+  <div class="capRow"><div id="cap"></div><button class="btn sm" id="cnext">SEGUIR ▶</button></div>
   <button class="btn alt sm" id="cskip">OMITIR</button>
-  <button class="btn sm" id="cnext">SEGUIR ▶</button>
 </div>
 
 <div class="scr dim hidden" id="pause">
