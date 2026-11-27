@@ -660,7 +660,7 @@ function onLadderNear() { if (!G || !P) return false; return G.L.lad.some(l => M
 // cada corazón tiene una barra: cuando se vacía, se pierde el corazón y la barra se llena de nuevo
 function hurt(src, dmg = 25) {
   if (P.inv > 0 || P.win || G.clear) return;
-  P.bar -= dmg * D().dmg; P.barFlash = 0.5;
+  P.bar -= dmg * D().dmg; P.barFlash = 0.5; G.hits = (G.hits || 0) + 1;
   if (P.bar <= 0) { P.hp--; P.bar = P.hp > 0 ? 100 : 0; word(P.x, P.y - 80, '−1 ❤', '#ff6b8a'); }
   P.inv = 1.2; P.hurtT = 0.45; P.climb = null; P.vy = -360; P.vx = (src != null ? Math.sign(P.x - src) || -P.face : -P.face) * 210; P.on = false; P.ground = null;
   SFX.hurt(); G.shake = 0.25; BI.scare = 0.6; vibe(60);
@@ -867,7 +867,7 @@ function damageEnemy(e, dmg, stun) {
   e.hp -= dmg; e.flash = 0.12; SFX.hit();
   if (stun) e.stun = Math.max(e.stun, stun);
   if (e.hp <= 0) {
-    e.st = 'shrink'; e.k = 1; SFX.shrink(); const b = eBox(e); puff(b.x, b.y, 12, '#d78bff', 120, 0.6, 4); word(b.x, b.y - 26, pick(['¡ZAP!', '¡PIUM!', '¡FIUU!', '¡ACHICADO!']), '#d78bff');
+    e.st = 'shrink'; e.k = 1; SFX.shrink(); G.shrunk = (G.shrunk || 0) + 1; const b = eBox(e); puff(b.x, b.y, 12, '#d78bff', 120, 0.6, 4); word(b.x, b.y - 26, pick(['¡ZAP!', '¡PIUM!', '¡FIUU!', '¡ACHICADO!']), '#d78bff');
     G.pk.push({ type: 'coin', x: b.x, y: b.y, vy: -220, drop: 1 });
     if (G.L.weapon === 'gom' && Math.random() < 0.7) G.pk.push({ type: 'pit', x: b.x + 12, y: b.y, vy: -260, drop: 1 });
   }
@@ -1489,7 +1489,7 @@ $('comic').onclick = () => nextPanel();
 $('cskip').onclick = e => { e.stopPropagation(); comicI = comicQ.length; nextPanel(); };
 
 /* ---------- Pantallas ---------- */
-const SCREENS = ['loading', 'menu', 'levels', 'albumS', 'comic', 'pause', 'over', 'win', 'shop', 'fin', 'ios'];
+const SCREENS = ['loading', 'menu', 'levels', 'albumS', 'comic', 'pause', 'over', 'win', 'shop', 'fin', 'ios', 'records', 'confirm'];
 function hideAll() { SCREENS.forEach(id => $(id).classList.add('hidden')); }
 function show(id) { $(id).classList.remove('hidden'); }
 function vis(id) { return !$(id).classList.contains('hidden'); }
@@ -1550,12 +1550,59 @@ function levelClear() {
   if (lv === 5) SV.beaten = true;
   SV.resume = lv < 5 ? { lv: lv + 1, cp: false } : null; save();
 }
+/* ---------- Puntaje y récords (se guardan en el cel) ---------- */
+const DIFF_MULT = [0.75, 1, 1.4, 2];
+function levelScore() {
+  const figs = G.figs, coins = G.coins, bugs = G.shrunk || 0, boss = 1000, time = Math.max(0, Math.round(600 - G.t * 2)), noHit = G.hits ? 0 : 1000;
+  const base = coins * 10 + bugs * 50 + figs * 300 + boss + time + noHit;
+  return { total: Math.round(base * DIFF_MULT[SV.diff]), parts: { coins, bugs, figs, time, noHit } };
+}
+if (!SV.rec) SV.rec = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], story: [] };
+function qualifies(key, sc) { const t = SV.rec[key] || []; return sc > 0 && (t.length < 8 || sc > t[t.length - 1].s); }
+function addRec(key, name, sc) { const t = SV.rec[key] = SV.rec[key] || []; const e = { n: name, s: sc, d: SV.diff, at: Date.now() }; t.push(e); t.sort((a, b) => b.s - a.s); t.length = Math.min(t.length, 8); save(); return e.at; }
+let pendingRec = null;
 function showWin() {
   G.run = false; hideAll(); show('win'); $('shopBtn').classList.add('hidden');
   const f = [0, 1, 2].filter(k => (SV.fig[G.lv] >> k) & 1).length;
   $('winT').textContent = G.lv === 5 ? '¡LA PRINCESA, ACHICADA!' : '¡NIVEL SUPERADO!';
   $('winS').innerHTML = `<b>${LEVEL_NAMES[G.lv]}</b><br>Monedas juntadas: ${G.coins} · Figuritas: ${f}/3 · Tiempo: ${fmtT(G.t)}` + (f < 3 ? '<br><small>Te quedan figuritas escondidas. Podés volver desde NIVELES.</small>' : '');
+  const sc = levelScore(), p = sc.parts;
+  $('winScore').innerHTML = `${sc.total.toLocaleString('es-AR')} PUNTOS<small>Monedas ${p.coins * 10} · Bichos achicados ${p.bugs * 50} · Figuritas ${p.figs * 300} · Jefe 1000 · Tiempo ${p.time}${p.noHit ? ' · Sin un rasguño 1000' : ''} · ×${DIFF_MULT[SV.diff]} ${DIFF[SV.diff].name}</small>`;
+  // la historia completa suma los niveles jugados de corrido desde el nivel 1
+  if (G.lv === 0) { SV.storyRun = sc.total; SV.storyLv = 1; }
+  else if (SV.storyRun != null && SV.storyLv === G.lv) { SV.storyRun += sc.total; SV.storyLv = G.lv + 1; }
+  else SV.storyRun = null;
+  save();
+  const recs = [];
+  if (qualifies(G.lv, sc.total)) recs.push([G.lv, sc.total]);
+  if (G.lv === 5 && SV.storyRun != null && SV.storyLv === 6 && qualifies('story', SV.storyRun)) recs.push(['story', SV.storyRun]);
+  pendingRec = recs;
+  $('recBox').classList.toggle('hidden', !recs.length);
+  if (recs.length) { $('recT').textContent = recs.some(r => r[0] === 'story') ? `¡RÉCORD DE LA HISTORIA COMPLETA: ${SV.storyRun.toLocaleString('es-AR')}!` : '¡NUEVO RÉCORD!'; $('recName').value = SV.lastName || ''; $('recSave').disabled = false; $('recSave').textContent = 'GUARDAR'; }
 }
+$('recSave').onclick = () => {
+  const n = ($('recName').value || '').trim().slice(0, 12) || 'Chispa'; SV.lastName = n;
+  for (const [k, sc] of pendingRec || []) SV.lastRecAt = addRec(k, n, sc);
+  pendingRec = null; $('recSave').disabled = true; $('recSave').textContent = '¡GUARDADO!'; SFX.fig(); save();
+};
+$('recName').addEventListener('keydown', e => { if (e.key === 'Enter') $('recSave').click(); });
+let recTab = 'story';
+function showRecords(tab) {
+  hideAll(); show('records'); $('mute').classList.add('hidden'); if (tab != null) recTab = tab;
+  const tabs = [['story', 'HISTORIA'], ...LEVEL_NAMES.map((n, i) => [i, String(i + 1)])];
+  $('recTabs').innerHTML = tabs.map(([k, l]) => `<button class="chip${String(k) === String(recTab) ? ' on' : ''}" data-k="${k}">${l}</button>`).join('');
+  $('recTabs').querySelectorAll('button').forEach(b => b.onclick = () => showRecords(b.dataset.k === 'story' ? 'story' : +b.dataset.k));
+  const t = SV.rec[recTab] || [];
+  $('recRows').innerHTML = t.length ? t.map((e, i) => `<tr class="${e.at === SV.lastRecAt ? 'me' : ''}"><td>${i + 1}</td><td>${esc(e.n)}</td><td>${e.s.toLocaleString('es-AR')}</td><td>${DIFF[e.d] ? DIFF[e.d].name : ''}</td></tr>`).join('')
+    : `<tr><td colspan="4" style="text-align:center;padding:14px">${recTab === 'story' ? 'Todavía nadie terminó la historia de corrido, del nivel 1 a la Princesa.' : 'Todavía no hay récords en ' + LEVEL_NAMES[recTab] + '.'}</td></tr>`;
+}
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+$('bRecords').onclick = () => showRecords();
+$('recBack').onclick = toMenu;
+// reiniciar historia: se pierde el avance, no las monedas ni el álbum
+$('bReset').onclick = () => { hideAll(); show('confirm'); $('mute').classList.add('hidden'); };
+$('cfNo').onclick = toMenu;
+$('cfYes').onclick = () => { SV.unlocked = 1; SV.resume = null; SV.seen = {}; SV.beaten = false; SV.storyRun = null; SV.storyLv = null; save(); toast('Historia reiniciada. ¡A empezar de nuevo!'); toMenu(); };
 $('wNext').onclick = () => { const lv = G.lv; playComic('c' + lv, () => { if (lv >= 5) { hideAll(); show('fin'); $('finS').textContent = `Figuritas pegadas: ${SV.fig.reduce((a, v) => a + [0, 1, 2].filter(k => (v >> k) & 1).length, 0)} de 18.`; playMusic('final'); } else startLevel(lv + 1); }); };
 $('fMenu').onclick = toMenu;
 $('lgo').onclick = () => { audioOn(); toMenu(); };
@@ -1594,6 +1641,7 @@ addEventListener('popstate', () => {
   if (vis('shop')) { $('shBack').click(); return; }
   if (vis('comic')) { $('cskip').click(); return; }
   if (vis('ios')) { hideAll(); toMenu(); return; }
+  if (vis('records') || vis('confirm')) { toMenu(); return; }
   toMenu();
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && G && G.run && !G.paused && !G.clear) togglePause(); if (document.hidden) saveResume(); });

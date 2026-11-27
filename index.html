@@ -90,6 +90,28 @@ p{margin:0;max-width:520px;font-weight:600;line-height:1.4}
 .chip{font:400 14px 'Luckiest Guy',Impact;letter-spacing:.5px;color:var(--ink);background:#fff;border:3px solid var(--ink);border-radius:999px;padding:6px 11px;box-shadow:2px 2px 0 var(--ink);cursor:pointer;min-height:36px}
 .chip.on{background:var(--mag);color:#fff}
 #diff{gap:6px}
+.link{background:none;border:0;color:#fff;font:700 13px Archivo,sans-serif;text-decoration:underline;text-underline-offset:3px;opacity:.85;cursor:pointer;min-height:36px;text-shadow:1px 1px 0 var(--ink)}
+.score{margin-top:10px;font:400 30px 'Luckiest Guy',Impact;color:var(--mag);letter-spacing:1px}
+.score small{display:block;font:700 12px Archivo,sans-serif;color:var(--ink);letter-spacing:0}
+.newrec{margin-top:10px;display:flex;flex-direction:column;gap:6px;align-items:center}
+.newrec b{font:400 20px 'Luckiest Guy',Impact;color:#e2357a}
+.newrec input{font:700 17px Archivo,sans-serif;border:3px solid var(--ink);border-radius:10px;padding:8px 10px;width:170px;min-height:44px;color:var(--ink);background:#fff}
+.recPanel{padding:10px 12px;max-width:520px}
+table.rec{width:100%;border-collapse:collapse;color:var(--ink);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums}
+table.rec th{font:400 14px 'Luckiest Guy',Impact;text-align:left;border-bottom:3px solid var(--ink);padding:4px 6px}
+table.rec td{padding:5px 6px;border-bottom:1px dashed #c9b99a}
+table.rec td:nth-child(3){text-align:right}table.rec th:nth-child(3){text-align:right}
+table.rec tr.me td{background:#ffe680}
+#recTabs{gap:6px}
+#win{gap:8px}
+#win h2{font-size:clamp(22px,4.2vw,34px)}
+#win .panel{padding:10px 14px}
+#win .panel p{font-size:13px;line-height:1.3}
+#win .score{margin-top:4px;font-size:26px}
+#win .score small{font-size:11px;font-weight:600}
+#win .newrec{margin-top:4px;flex-direction:row;flex-wrap:wrap;justify-content:center}
+#win .newrec b{font-size:16px;width:100%}
+#win .btn#wNext{min-height:46px;padding:10px 22px}
 #loading .bar{width:220px;height:16px;border:3px solid var(--ink);background:#fff;border-radius:8px;overflow:hidden}
 #loading .bar i{display:block;height:100%;width:0;background:var(--mag)}
 @media (prefers-reduced-motion:reduce){#rotate .ph{animation:none}#comic img{transition:none}}
@@ -107,8 +129,9 @@ p{margin:0;max-width:520px;font-weight:600;line-height:1.4}
     <div class="diffBox"><div class="row" id="diff"></div><small id="diffTxt"></small></div>
     <button class="btn hidden" id="bResume">CONTINUAR</button>
     <button class="btn" id="bPlay">JUGAR</button>
-    <div class="row"><button class="btn alt sm" id="bLevels">NIVELES</button><button class="btn alt sm" id="bAlbum">ÁLBUM</button></div>
+    <div class="row"><button class="btn alt sm" id="bLevels">NIVELES</button><button class="btn alt sm" id="bAlbum">ÁLBUM</button><button class="btn alt sm" id="bRecords">RÉCORDS</button></div>
     <button class="btn mag sm hidden" id="bInstall">📲 INSTALAR EN EL CEL</button>
+    <button class="link" id="bReset">Reiniciar historia</button>
   </div>
 </div>
 <button class="corner hidden" id="mute" aria-label="Sonido">♪</button>
@@ -151,7 +174,10 @@ p{margin:0;max-width:520px;font-weight:600;line-height:1.4}
 
 <div class="scr dim hidden" id="win">
   <h2 id="winT">¡NIVEL SUPERADO!</h2>
-  <div class="panel"><p id="winS"></p></div>
+  <div class="panel"><p id="winS"></p>
+    <div class="score" id="winScore"></div>
+    <div class="newrec hidden" id="recBox"><b id="recT">¡NUEVO RÉCORD!</b><div class="row"><input id="recName" maxlength="12" placeholder="Tu nombre" autocomplete="off" aria-label="Tu nombre"><button class="btn sm" id="recSave">GUARDAR</button></div></div>
+  </div>
   <button class="btn" id="wNext">SEGUIR</button>
 </div>
 
@@ -168,6 +194,18 @@ p{margin:0;max-width:520px;font-weight:600;line-height:1.4}
   <h1>FIN</h1>
   <div class="panel"><p>Mendoza está a salvo. La Princesa quedó chiquita y ahora es amiga de Bichi.</p><p id="finS" style="margin-top:8px"></p></div>
   <button class="btn" id="fMenu">MENÚ</button>
+</div>
+
+<div class="scr dim hidden" id="records">
+  <h2>RÉCORDS</h2>
+  <div class="row" id="recTabs"></div>
+  <div class="panel recPanel"><table class="rec"><thead><tr><th>#</th><th>Nombre</th><th>Puntos</th><th>Dificultad</th></tr></thead><tbody id="recRows"></tbody></table></div>
+  <button class="btn alt sm" id="recBack">VOLVER</button>
+</div>
+
+<div class="scr dim hidden" id="confirm">
+  <div class="panel"><h2 style="font-size:28px">¿REINICIAR LA HISTORIA?</h2><p style="margin-top:10px">Volvés al principio, con la historieta del comienzo y los niveles bloqueados. Las monedas, las figuritas del álbum, los corazones extra y los récords se quedan.</p></div>
+  <div class="row"><button class="btn mag" id="cfYes">SÍ, REINICIAR</button><button class="btn alt" id="cfNo">NO</button></div>
 </div>
 
 <div class="scr dim hidden" id="ios">

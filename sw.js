@@ -1,5 +1,5 @@
 /* El Huevo Violeta — service worker: el juego funciona sin conexión */
-const CACHE = 'huevo-v3';
+const CACHE = 'huevo-v4';
 const FILES = [
   './',
   'index.html',
